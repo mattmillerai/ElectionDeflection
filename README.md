@@ -1,16 +1,18 @@
-<p align="center">
-<pre align="center">
- ___ _        _   _
-| __| |___ __| |_(_)___ _ _
-| _|| / -_) _|  _| / _ \ ' \
-|___|_\___\__|\__|_\___/_||_|
+<div align="center">
 
- ___       __ _        _   _
-|   \ ___ / _| |___ __| |_(_)___ _ _
-| |) / -_)  _| / -_) _|  _| / _ \ ' \
-|___/\___|_| |_\___\__|\__|_\___/_||_|
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=18&color=FF9900&center=true&vCenter=true&width=320&height=40&repeat=false&pause=1000&lines=Political+texts%2C+filtered." alt="Political texts, filtered." />
+
+<pre>
+ _                      
+|_| _  __|_o _ ._       
+|_|(/_(_ |_|(_)| |      
+                        
+ _     _                
+| \ __|_| _  __|_o _ ._ 
+|_/(/_| |(/_(_ |_|(_)| |
 </pre>
-</p>
+
+</div>
 
 <p align="center">
   <strong>ElectionDeflection: a privacy-first iOS app that filters political text messages using on-device keyword matching and Core ML. No accounts, no analytics, no tracking.</strong>
