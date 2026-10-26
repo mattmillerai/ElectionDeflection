@@ -1,6 +1,36 @@
-# ElectionDeflection
+<div align="center">
 
-A privacy-first iOS app that filters political text messages using on-device keyword matching and Core ML — no accounts, no analytics, no tracking.
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=18&color=FF9900&center=true&vCenter=true&width=320&height=40&repeat=false&pause=1000&lines=Political+texts%2C+filtered." alt="Political texts, filtered." />
+
+<pre>
+ _                      
+|_| _  __|_o _ ._       
+|_|(/_(_ |_|(_)| |      
+                        
+ _     _                
+| \ __|_| _  __|_o _ ._ 
+|_/(/_| |(/_(_ |_|(_)| |
+</pre>
+
+</div>
+
+<p align="center">
+  <strong>ElectionDeflection: a privacy-first iOS app that filters political text messages using on-device keyword matching and Core ML. No accounts, no analytics, no tracking.</strong>
+</p>
+
+<p align="center">
+  Message filtering runs on-device with no network requests. The only network use is Apple's StoreKit and the optional, user-initiated "submit example text" feature.
+</p>
+
+<p align="center">
+  <a href="https://apps.apple.com/us/app/electiondeflection/id6670375536"><img src="https://img.shields.io/badge/App_Store-Download-0D96F6?style=flat-square&logo=apple&logoColor=white" alt="Download on the App Store"></a>
+  <img src="https://img.shields.io/badge/iOS-16.0%2B-blue?style=flat-square&logo=apple&logoColor=white" alt="iOS 16.0+">
+  <a href="https://github.com/mattmillerai/ElectionDeflection/blob/main/LICENSE"><img src="https://img.shields.io/github/license/mattmillerai/ElectionDeflection?style=flat-square" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/Swift-F05138?style=flat-square&logo=swift&logoColor=white" alt="Swift">
+  <img src="https://img.shields.io/badge/privacy-on--device-2ea44f?style=flat-square" alt="Privacy: on-device">
+</p>
+
+---
 
 ## Features
 
