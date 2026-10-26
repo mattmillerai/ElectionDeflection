@@ -74,8 +74,12 @@ final class StoreKitServiceTests: XCTestCase {
         mockChecker = MockEntitlementChecker()
         mockPurchaser = MockPurchasePerformer()
 
-        // Reset shared data manager state
+        // Reset shared data manager state. checkEntitlements()/updateProTierStatus()
+        // always write to the real SharedDataManager.shared (App Group suite) rather
+        // than an injected instance, so these have to be reset directly rather than
+        // through testDefaults.
         SharedDataManager.shared.isProTier = false
+        SharedDataManager.shared.preferKeywordFiltering = SharedConstants.defaultPreferKeywordFiltering
     }
 
     override func tearDown() {
@@ -85,6 +89,8 @@ final class StoreKitServiceTests: XCTestCase {
         mockSyncer = nil
         mockChecker = nil
         mockPurchaser = nil
+        SharedDataManager.shared.isProTier = false
+        SharedDataManager.shared.preferKeywordFiltering = SharedConstants.defaultPreferKeywordFiltering
         super.tearDown()
     }
 
@@ -253,6 +259,32 @@ final class StoreKitServiceTests: XCTestCase {
 
         XCTAssertTrue(service.isProTier)
         XCTAssertEqual(service.subscriptionStatus, .lifetime)
+    }
+
+    // MARK: - ML Model Gating on Entitlement Change (issue #4)
+
+    func testLifetimeEntitlementEnablesMLFiltering() async {
+        // Pro-only keyword-vs-AI toggle: make sure AI filtering is the one in
+        // effect for this assertion, independent of whatever a prior test left
+        // in the (real, shared) user preference.
+        SharedDataManager.shared.preferKeywordFiltering = false
+
+        let service = makeService()
+        mockChecker.detailToReturn = EntitlementDetail(
+            productID: SharedConstants.proLifetimeProductID,
+            expirationDate: nil
+        )
+
+        await service.checkEntitlements()
+
+        XCTAssertTrue(service.isProTier)
+        // updateProTierStatus() calls MLModelValidator.validateAndSync() synchronously
+        // right after setting isProTier, so a fresh lifetime purchase/restore should
+        // already reflect ML availability without waiting for the next launch.
+        XCTAssertTrue(SharedDataManager.shared.isMLModelEnabled,
+                      "Lifetime entitlement should enable ML filtering (model is bundled in this test host)")
+        XCTAssertEqual(SharedDataManager.shared.filterMethod, SharedConstants.filterMethodML,
+                       "Lifetime Pro entitlement with AI filtering preferred should select the ML filter method")
     }
 
     func testCheckEntitlementsUpdatesSubscriptionStatus_None() async {

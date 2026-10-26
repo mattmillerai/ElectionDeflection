@@ -19,6 +19,10 @@ build/
 .AppleDouble
 .LSOverride
 
+# Python (CI helper scripts under .github/scripts/)
+__pycache__/
+*.pyc
+
 # AI Tools
 .claude/
 .cursor/
@@ -31,11 +35,16 @@ build/
 # Swift Package Manager
 .swiftpm/
 
-# Training data (JSON/model/txt files contain real message content)
-TrainingData/*.local.json  # keep the versioned training_data_v*.json tracked; ignore local scratch
+# Training data (JSON/model/txt files contain real message content).
+# The raw files stay OUT of git; an encrypted bundle is committed instead
+# (TrainingData/training_data.enc — key in 1Password, see scripts/*-training-data.sh).
+# training_data_v1.json and synthetic_enrichment.json were force-added earlier
+# and stay tracked despite this rule.
+TrainingData/*.json
 TrainingData/*.mlmodel
 TrainingData/*.mlmodelc
 TrainingData/*.txt
+!TrainingData/training_data.enc
 
 # BMAD framework (dev tooling only)
 _bmad/
@@ -58,7 +67,6 @@ node_modules/
 *.cer
 
 # Ruby/fastlane — resolve on the runner
-Gemfile.lock
 
 # Feedback pipeline — harvested user texts & Slack tokens must never be committed
 tools/feedback/*.jsonl

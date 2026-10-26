@@ -19,10 +19,15 @@ enum SharedConstants {
     static let v1PurchaserKey = "isV1Purchaser"
     static let whitelistContextsKey = "whitelistContexts"
     static let combinedTermsKey = "combinedTerms"
+    static let preferKeywordFilteringKey = "preferKeywordFiltering"
     static let hasCompletedOnboardingKey = "hasCompletedOnboarding"
     static let hasSeenUpgradePromptKey = "hasSeenUpgradePrompt"
     static let onboardingCompletedDateKey = "onboardingCompletedDate"
     static let hasSeenV2WelcomeKey = "hasSeenV2Welcome"
+    /// Stores DefaultFilterData.fingerprint as of the last seed, so SharedDataManager can
+    /// detect when the bundled filter data (e.g. a new keyword) has changed since and
+    /// needs to be reseeded, instead of only reseeding when keywordList is empty.
+    static let filterDataFingerprintKey = "filterDataFingerprint"
 
     // MARK: - Upgrade Prompt
 
@@ -61,5 +66,7 @@ enum SharedConstants {
     static let defaultTextsBlockedCount = 0
     static let defaultFilterMethod = filterMethodKeyword
     static let defaultIsV1Purchaser = false
+    // Pro users default to AI filtering; they may opt into keyword-only.
+    static let defaultPreferKeywordFiltering = false
     static let defaultHasCompletedOnboarding = false
 }

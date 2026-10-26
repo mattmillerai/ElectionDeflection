@@ -388,6 +388,12 @@ final class StoreKitService: ObservableObject {
         KeychainService.saveProTierStatus(value)
         SharedDataManager.shared.isProTier = value
         isProTier = value
+        // Entitlement just changed — recompute ML availability now so isMLModelEnabled
+        // and filterMethod reflect the new tier immediately. Without this, a fresh Pro
+        // purchase leaves the flag at its pre-purchase (false) value until the next
+        // launch/foreground, surfacing a spurious "ML unavailable" banner. Covers the
+        // purchase, restore, and Transaction.updates paths (all route through here).
+        MLModelValidator.validateAndSync()
         if value {
             UpgradeNotificationManager.cancelPendingNotification()
         }
