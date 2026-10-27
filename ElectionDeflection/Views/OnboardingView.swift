@@ -4,14 +4,11 @@ struct OnboardingStep {
     let title: String
     let description: String
     let imageName: String?
-}
 
-struct OnboardingView: View {
-    var onComplete: (() -> Void)? = nil
-    @Environment(\.dismiss) private var dismiss
-    @State private var currentPage = 0
-
-    private var steps: [OnboardingStep] {
+    /// Builds the onboarding steps for a given iOS major version. Mirrors the
+    /// #available(iOS 26) / #available(iOS 18) / older branching used at runtime,
+    /// extracted so it can be exercised directly in tests.
+    static func steps(forOSMajorVersion major: Int) -> [OnboardingStep] {
         var result: [OnboardingStep] = []
 
         // Step 1: Open Settings (all versions)
@@ -21,7 +18,7 @@ struct OnboardingView: View {
             imageName: "settings_icon_pdf"
         ))
 
-        if #available(iOS 26.0, *) {
+        if major >= 26 {
             // iOS 26+ path: Settings > Apps > Messages > Text Message Filter > ElectionDeflection
             result.append(OnboardingStep(
                 title: "Step 2: Go to Apps",
@@ -34,13 +31,13 @@ struct OnboardingView: View {
                 imageName: "ios26_apps_messages"
             ))
             result.append(OnboardingStep(
-                title: "Step 4: Open Text Message Filter",
-                description: "Tap on 'Text Message Filter' in the Messages settings.",
+                title: "Step 4: Turn On Screen Unknown Senders",
+                description: "Under 'Unknown Senders', turn on 'Screen Unknown Senders' if it isn't already on (it's off by default). You may not be able to pick a text filter until it's on. Then tap on 'Text Message Filter'.",
                 imageName: "ios26_messages_settings"
             ))
             result.append(OnboardingStep(
                 title: "Step 5: Enable SMS Filtering",
-                description: "Select 'ElectionDeflection' under Text Message Filter.",
+                description: "Select 'ElectionDeflection' under Text Message Filter. If prompted, tap 'Use' to confirm.",
                 imageName: "ios26_text_message_filter"
             ))
             result.append(OnboardingStep(
@@ -48,7 +45,7 @@ struct OnboardingView: View {
                 description: "Once enabled, ElectionDeflection will filter political messages into the Spam folder. You can find filtered messages by tapping the filter menu in Messages. Don't worry, any political messages from your contacts won't be filtered.",
                 imageName: "ios26_filter_menu"
             ))
-        } else if #available(iOS 18.0, *) {
+        } else if major >= 18 {
             // iOS 18 path: Settings > Apps > Messages > Unknown & Spam > ElectionDeflection
             result.append(OnboardingStep(
                 title: "Step 2: Go to Apps",
@@ -61,13 +58,13 @@ struct OnboardingView: View {
                 imageName: "ios18_apps"
             ))
             result.append(OnboardingStep(
-                title: "Step 4: Open Unknown & Spam",
-                description: "Tap on 'Unknown & Spam' in the Messages settings.",
+                title: "Step 4: Turn On Filter Unknown Senders",
+                description: "Tap on 'Unknown & Spam' in the Messages settings, then turn on 'Filter Unknown Senders' if it isn't already on. You may not be able to pick a text filter until it's on.",
                 imageName: "unknown_spam_screenshot"
             ))
             result.append(OnboardingStep(
                 title: "Step 5: Enable SMS Filtering",
-                description: "Select 'ElectionDeflection' under SMS Filtering.",
+                description: "Select 'ElectionDeflection' under SMS Filtering. If prompted, tap 'Enable' to confirm.",
                 imageName: "sms_filtering_screenshot"
             ))
             result.append(OnboardingStep(
@@ -83,13 +80,13 @@ struct OnboardingView: View {
                 imageName: "messages_screenshot"
             ))
             result.append(OnboardingStep(
-                title: "Step 3: Open Unknown & Spam",
-                description: "Tap on 'Unknown & Spam' in the Messages settings.",
+                title: "Step 3: Turn On Filter Unknown Senders",
+                description: "Tap on 'Unknown & Spam' in the Messages settings, then turn on 'Filter Unknown Senders' if it isn't already on. You may not be able to pick a text filter until it's on.",
                 imageName: "unknown_spam_screenshot"
             ))
             result.append(OnboardingStep(
                 title: "Step 4: Enable SMS Filtering",
-                description: "Select 'ElectionDeflection' under SMS Filtering.",
+                description: "Select 'ElectionDeflection' under SMS Filtering. If prompted, tap 'Enable' to confirm.",
                 imageName: "sms_filtering_screenshot"
             ))
             result.append(OnboardingStep(
@@ -107,6 +104,16 @@ struct OnboardingView: View {
         ))
 
         return result
+    }
+}
+
+struct OnboardingView: View {
+    var onComplete: (() -> Void)? = nil
+    @Environment(\.dismiss) private var dismiss
+    @State private var currentPage = 0
+
+    private var steps: [OnboardingStep] {
+        OnboardingStep.steps(forOSMajorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
     }
 
     // Total number of pages: welcome screen (0) + steps

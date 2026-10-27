@@ -154,12 +154,51 @@ final class SharedDataManager {
         set { defaults?.set(newValue, forKey: SharedConstants.combinedTermsKey) }
     }
 
-    // MARK: - Seed Default Filter Data
+    // MARK: - Prefer Keyword Filtering (Pro users may opt out of AI)
 
+    var preferKeywordFiltering: Bool {
+        get { defaults?.object(forKey: SharedConstants.preferKeywordFilteringKey) as? Bool ?? SharedConstants.defaultPreferKeywordFiltering }
+        set { defaults?.set(newValue, forKey: SharedConstants.preferKeywordFilteringKey) }
+    }
+
+    // MARK: - Filter Data Fingerprint
+
+    /// DefaultFilterData.fingerprint as of the last successful seed. Compared against
+    /// the current DefaultFilterData.fingerprint to detect when the bundled defaults
+    /// (e.g. a new keyword) have changed since and the stored copy is stale.
+    var filterDataFingerprint: String? {
+        get { defaults?.string(forKey: SharedConstants.filterDataFingerprintKey) }
+        set { defaults?.set(newValue, forKey: SharedConstants.filterDataFingerprintKey) }
+    }
+
+    // MARK: - Seed / Refresh Default Filter Data
+
+    /// Seeds shared filter data from DefaultFilterData on first access, and reseeds it
+    /// whenever the bundled defaults have changed since the last seed (fingerprint
+    /// mismatch) — e.g. when a filter-data update ships a new keyword like "stop=end"
+    /// (issue #3). Without this, a user who first ran the app before such an update
+    /// would keep their original seeded copy forever.
     func seedDefaultFilterDataIfNeeded() {
-        guard keywordList.isEmpty else { return }
+        guard keywordList.isEmpty || filterDataFingerprint != DefaultFilterData.fingerprint else { return }
         keywordList = DefaultFilterData.keywords
         whitelistContexts = DefaultFilterData.whitelistContexts
         combinedTerms = DefaultFilterData.combinedTerms
+        filterDataFingerprint = DefaultFilterData.fingerprint
+    }
+
+    /// The filter data callers should actually use: the stored copy when it's present
+    /// and current (fingerprint matches), otherwise the bundled DefaultFilterData.
+    ///
+    /// This exists because seedDefaultFilterDataIfNeeded()'s writes are silently blocked
+    /// by the ILMessageFilterExtension sandbox (see the NOTE at the top of this file) — the
+    /// extension and FilterAuditClassifier can call seed, but if it can't actually write
+    /// (extension) or hasn't run yet (app not opened since a data update), the stored
+    /// copy may be empty or stale. Falling back here, not just when a list is empty,
+    /// is what fixes issue #3.
+    func effectiveFilterData() -> (keywords: [String], whitelistContexts: [String: [String]], combinedTerms: [[String]]) {
+        guard !keywordList.isEmpty, filterDataFingerprint == DefaultFilterData.fingerprint else {
+            return (DefaultFilterData.keywords, DefaultFilterData.whitelistContexts, DefaultFilterData.combinedTerms)
+        }
+        return (keywordList, whitelistContexts, combinedTerms)
     }
 }

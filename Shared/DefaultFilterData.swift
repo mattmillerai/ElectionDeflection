@@ -1,9 +1,14 @@
 import Foundation
 
-/// Default v1.0 filter data constants used for seeding SharedDataManager on first access.
+/// Default filter data constants used for seeding SharedDataManager, and for refreshing
+/// it whenever these constants change (see `fingerprint` below) — e.g. when a new
+/// keyword like "stop=end" is added (issue #3) and existing users' seeded copy would
+/// otherwise never pick it up.
 /// This file preserves the exact keyword list, whitelist contexts, and combined terms
-/// from the v1.0 MessageFilterExtension implementation.
-/// Both targets must include this file in their Compile Sources build phase.
+/// from the v1.0 MessageFilterExtension implementation, updated over time as new terms
+/// are added.
+/// Both the app and extension targets must include this file in their Compile Sources
+/// build phase.
 enum DefaultFilterData {
 
     // MARK: - Keywords (v1.0 — 400+ political terms)
@@ -91,4 +96,79 @@ enum DefaultFilterData {
         ["democracy", "reply stop"],
         ["democracy", "stop2end"],
     ]
+}
+
+// MARK: - Content Fingerprint
+
+extension DefaultFilterData {
+
+    /// Fingerprint of the current bundled keywords/whitelistContexts/combinedTerms.
+    /// SharedDataManager stores this when it seeds, and reseeds whenever the stored
+    /// value no longer matches — i.e. whenever this file's data changes.
+    static var fingerprint: String {
+        fingerprint(keywords: keywords, whitelistContexts: whitelistContexts, combinedTerms: combinedTerms)
+    }
+
+    /// Deterministic FNV-1a hash of a canonical serialization (dictionary keys sorted,
+    /// so Dictionary's nondeterministic ordering can't affect the result). Must stay
+    /// stable across launches and processes, so this deliberately does NOT use Swift's
+    /// `hashValue`/`Hasher`, which are randomized per-process.
+    static func fingerprint(keywords: [String], whitelistContexts: [String: [String]], combinedTerms: [[String]]) -> String {
+        let unitSeparator = "\u{1}"
+        let recordSeparator = "\u{2}"
+        let sectionSeparator = "\u{3}"
+
+        let keywordsSection = keywords.joined(separator: unitSeparator)
+        let whitelistSection = whitelistContexts.keys.sorted().map { key in
+            "\(key)=\(whitelistContexts[key]!.joined(separator: unitSeparator))"
+        }.joined(separator: recordSeparator)
+        let combinedSection = combinedTerms.map { $0.joined(separator: unitSeparator) }.joined(separator: recordSeparator)
+
+        let canonical = [keywordsSection, whitelistSection, combinedSection].joined(separator: sectionSeparator)
+
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in canonical.utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x100000001b3
+        }
+        return String(hash, radix: 16)
+    }
+}
+
+// MARK: - Keyword Filter Engine
+
+/// Pure keyword-matching decision: given keywords, whitelist contexts, and combined
+/// terms, decides whether a message body counts as political. This is the single
+/// implementation shared by MessageFilterExtension and FilterAuditClassifier, so their
+/// decisions can never drift apart. Semantics (case-insensitive; combined terms checked
+/// first; a keyword match is bypassed when the body also contains one of that keyword's
+/// whitelisted phrases) are unchanged from the original per-target implementations.
+struct KeywordFilterEngine {
+    let keywords: [String]
+    let whitelistContexts: [String: [String]]
+    let combinedTerms: [[String]]
+
+    init(keywords: [String], whitelistContexts: [String: [String]], combinedTerms: [[String]]) {
+        self.keywords = keywords
+        self.whitelistContexts = whitelistContexts
+        self.combinedTerms = combinedTerms
+    }
+
+    func isPolitical(_ body: String) -> Bool {
+        let lowercased = body.lowercased()
+
+        for group in combinedTerms where group.allSatisfy({ lowercased.contains($0.lowercased()) }) {
+            return true
+        }
+
+        for keyword in keywords where lowercased.contains(keyword.lowercased()) {
+            if let whitelistedPhrases = whitelistContexts[keyword.lowercased()],
+               whitelistedPhrases.contains(where: { lowercased.contains($0.lowercased()) }) {
+                continue
+            }
+            return true
+        }
+
+        return false
+    }
 }

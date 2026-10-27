@@ -172,6 +172,12 @@ struct MainAppView: View {
                 ReviewRequestManager.shared.recordResignActive()
             }
         }
+        // Pro status can change mid-session (purchase / restore) without a
+        // foreground transition. Recompute ML availability so the degradation
+        // banner doesn't linger right after upgrade.
+        .onChange(of: storeService.isProTier) { _ in
+            validateMLModel()
+        }
     }
 
 

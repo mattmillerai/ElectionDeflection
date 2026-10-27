@@ -6,6 +6,7 @@ struct SettingsView: View {
 
     @State private var isFilterEnabled: Bool
     @State private var filterMethod: String
+    @State private var preferKeyword: Bool
     @State private var showingSetupInstructions = false
     @State private var showingProUpgrade = false
     @State private var showManageSubscription = false
@@ -13,10 +14,12 @@ struct SettingsView: View {
     @State private var isChangingIcon = false
     @State private var iconChangeError = false
     @State private var showingTextSubmission = false
+    @State private var showingAuditLog = false
 
     init() {
         _isFilterEnabled = State(initialValue: SharedDataManager.shared.isFilterEnabled)
         _filterMethod = State(initialValue: SharedDataManager.shared.filterMethod)
+        _preferKeyword = State(initialValue: SharedDataManager.shared.preferKeywordFiltering)
     }
 
     var body: some View {
@@ -85,6 +88,60 @@ struct SettingsView: View {
                                 .padding(16)
                                 .accessibilityElement(children: .combine)
                                 .accessibilityLabel("Filter method: \(filterMethod == SharedConstants.filterMethodML ? "AI" : "Keywords")")
+
+                                // Pro-only: opt into keyword filtering instead of AI
+                                if storeService.isProTier {
+                                    Divider()
+                                        .background(Color.white.opacity(0.15))
+
+                                    HStack(alignment: .top) {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Use Keyword Filtering")
+                                                .foregroundColor(.white)
+                                            Text("AI is recommended. Keyword matching is simpler but less accurate. Takes effect shortly after changing.")
+                                                .font(.caption)
+                                                .foregroundColor(.white.opacity(0.5))
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
+                                        Spacer()
+                                        Toggle("", isOn: $preferKeyword)
+                                            .labelsHidden()
+                                            .tint(.brandGold)
+                                            .onChange(of: preferKeyword) { newValue in
+                                                SharedDataManager.shared.preferKeywordFiltering = newValue
+                                                MLModelValidator.validateAndSync()
+                                                filterMethod = SharedDataManager.shared.filterMethod
+                                            }
+                                    }
+                                    .padding(16)
+                                    .accessibilityElement(children: .combine)
+                                    .accessibilityLabel("Use keyword filtering instead of AI, \(preferKeyword ? "on" : "off")")
+                                }
+
+                                Divider()
+                                    .background(Color.white.opacity(0.15))
+
+                                // Audit row — test the filter and review past checks
+                                Button {
+                                    showingAuditLog = true
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "checkmark.shield")
+                                            .foregroundColor(.brandGold)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Test the Filter")
+                                                .foregroundColor(.white)
+                                            Text("See how the filter classifies a message")
+                                                .font(.caption)
+                                                .foregroundColor(.white.opacity(0.5))
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .foregroundColor(.white.opacity(0.4))
+                                    }
+                                    .padding(16)
+                                }
+                                .accessibilityLabel("Test the Filter. See how the filter classifies a message.")
                             }
                         }
 
@@ -256,6 +313,9 @@ struct SettingsView: View {
         .sheet(isPresented: $showingTextSubmission) {
             TextSubmissionView()
                 .modifier(OpaqueSheetBackground(isProTier: storeService.isProTier))
+        }
+        .sheet(isPresented: $showingAuditLog) {
+            AuditLogView()
         }
         .manageSubscriptionsSheet(isPresented: $showManageSubscription)
         .alert("Unable to Change Icon", isPresented: $iconChangeError) {

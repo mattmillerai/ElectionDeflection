@@ -37,9 +37,13 @@ enum MLModelValidator {
     static func validateAndSync(using dataManager: SharedDataManager = .shared, in bundle: Bundle = .main) {
         let available = isMLModelAvailable(in: bundle)
         let isProTier = dataManager.isProTier
+        // isMLModelEnabled reflects model HEALTH (drives the degradation banner) and
+        // stays true even if a Pro user opts into keyword-only. filterMethod reflects
+        // what will actually run, which the keyword preference can override.
+        let useML = available && isProTier && !dataManager.preferKeywordFiltering
 
         dataManager.isMLModelEnabled = available && isProTier
-        dataManager.filterMethod = (available && isProTier)
+        dataManager.filterMethod = useML
             ? SharedConstants.filterMethodML
             : SharedConstants.filterMethodKeyword
     }

@@ -1,4 +1,5 @@
 import XCTest
+import CoreML
 @testable import ElectionDeflection
 
 final class SharedDataManagerTests: XCTestCase {
@@ -220,6 +221,29 @@ final class SharedDataManagerTests: XCTestCase {
         // 2. The failure path is tested independently with a bundle that lacks the model
         let result = MLModelValidator.isMLModelAvailable(in: Bundle.main)
         XCTAssertTrue(result, "ML model should be loadable from the main app bundle")
+    }
+
+    func testFilterExtensionBundleContainsLoadableMLModel() throws {
+        // Guards against issue #4 (App Store 2.1.1 build 37 shipped without the
+        // model): unlike testMLModelValidatorSuccessPath above, which checks the
+        // *host app's* bundle via Bundle.main, this walks into the embedded
+        // ElectionDeflectionFilter.appex the same way the extension process
+        // resolves its own Bundle.main, so a model missing only from the
+        // extension target (but present in the app) would still be caught.
+        let pluginsURL = try XCTUnwrap(Bundle.main.builtInPlugInsURL,
+                                        "Host app bundle should have a PlugIns directory")
+        let extensionURL = pluginsURL.appendingPathComponent("ElectionDeflectionFilter.appex")
+        let extensionBundle = try XCTUnwrap(Bundle(url: extensionURL),
+                                             "Should be able to load the ElectionDeflectionFilter.appex bundle at \(extensionURL.path)")
+        let modelURL = try XCTUnwrap(
+            extensionBundle.url(forResource: "PoliticalTextClassifier", withExtension: "mlmodelc"),
+            "PoliticalTextClassifier.mlmodelc should be present in the filter extension bundle"
+        )
+
+        let config = MLModelConfiguration()
+        config.computeUnits = .cpuOnly
+        XCTAssertNoThrow(try MLModel(contentsOf: modelURL, configuration: config),
+                          "ML model should be loadable from the filter extension bundle")
     }
 
     func testMLModelValidatorFailurePathMissingModel() {
@@ -702,9 +726,9 @@ final class SharedDataManagerTests: XCTestCase {
 
     // --- Task 1: Data Parity Verification ---
 
-    func testExactKeywordCountIs464() {
-        XCTAssertEqual(DefaultFilterData.keywords.count, 464,
-                       "v1.0 keyword list must contain exactly 464 keywords")
+    func testExactKeywordCountIs474() {
+        XCTAssertEqual(DefaultFilterData.keywords.count, 474,
+                       "keyword list as of edbc0a1 must contain exactly 474 keywords")
     }
 
     func testExactWhitelistContextKeysIs6WithTotal14Phrases() {
@@ -918,11 +942,83 @@ final class SharedDataManagerTests: XCTestCase {
     func testDataSeedingWorksWithoutProTier() {
         sut.isProTier = false
         sut.seedDefaultFilterDataIfNeeded()
-        XCTAssertEqual(sut.keywordList.count, 464,
-                       "Data seeding must work for Free tier (464 keywords)")
+        XCTAssertEqual(sut.keywordList.count, 474,
+                       "Data seeding must work for Free tier (474 keywords)")
         XCTAssertEqual(sut.whitelistContexts.count, 6,
                        "Data seeding must populate all 6 whitelist context groups for Free tier")
         XCTAssertEqual(sut.combinedTerms.count, 12,
                        "Data seeding must populate all 12 combined term groups for Free tier")
+    }
+}
+
+// MARK: - Onboarding Steps Tests (Issue #2: Unknown Senders setup step)
+
+final class OnboardingStepsTests: XCTestCase {
+
+    /// Extracts "Step N" numbers from titles formatted as "Step N: ...", in list order.
+    private func stepNumbers(from steps: [OnboardingStep]) -> [Int] {
+        steps.compactMap { step in
+            guard step.title.hasPrefix("Step "),
+                  let colonIndex = step.title.firstIndex(of: ":") else { return nil }
+            let numberPart = step.title[..<colonIndex].dropFirst("Step ".count)
+            return Int(numberPart)
+        }
+    }
+
+    private func indexOfStep(containing substring: String, in steps: [OnboardingStep]) -> Int? {
+        steps.firstIndex { $0.description.contains(substring) }
+    }
+
+    private func indexOfStepSelectingApp(in steps: [OnboardingStep]) -> Int? {
+        steps.firstIndex { $0.description.contains("Select 'ElectionDeflection'") }
+    }
+
+    func testIOS26StepsMentionScreenUnknownSendersBeforeSelectingApp() {
+        let steps = OnboardingStep.steps(forOSMajorVersion: 26)
+
+        guard let toggleIndex = indexOfStep(containing: "Screen Unknown Senders", in: steps),
+              let selectIndex = indexOfStepSelectingApp(in: steps) else {
+            XCTFail("Expected both a 'Screen Unknown Senders' step and an app-selection step")
+            return
+        }
+
+        XCTAssertLessThan(toggleIndex, selectIndex,
+                          "The Screen Unknown Senders toggle must be explained before the user is asked to select ElectionDeflection")
+    }
+
+    func testIOS18StepsMentionFilterUnknownSendersBeforeSelectingApp() {
+        let steps = OnboardingStep.steps(forOSMajorVersion: 18)
+
+        guard let toggleIndex = indexOfStep(containing: "Filter Unknown Senders", in: steps),
+              let selectIndex = indexOfStepSelectingApp(in: steps) else {
+            XCTFail("Expected both a 'Filter Unknown Senders' step and an app-selection step")
+            return
+        }
+
+        XCTAssertLessThan(toggleIndex, selectIndex,
+                          "The Filter Unknown Senders toggle must be explained before the user is asked to select ElectionDeflection")
+    }
+
+    func testIOS17StepsMentionFilterUnknownSendersBeforeSelectingApp() {
+        let steps = OnboardingStep.steps(forOSMajorVersion: 17)
+
+        guard let toggleIndex = indexOfStep(containing: "Filter Unknown Senders", in: steps),
+              let selectIndex = indexOfStepSelectingApp(in: steps) else {
+            XCTFail("Expected both a 'Filter Unknown Senders' step and an app-selection step")
+            return
+        }
+
+        XCTAssertLessThan(toggleIndex, selectIndex,
+                          "The Filter Unknown Senders toggle must be explained before the user is asked to select ElectionDeflection")
+    }
+
+    func testStepTitlesAreNumberedConsecutivelyForEachOSVersion() {
+        for major in [26, 18, 17] {
+            let steps = OnboardingStep.steps(forOSMajorVersion: major)
+            let numbers = stepNumbers(from: steps)
+            let expected = Array(1...numbers.count)
+            XCTAssertEqual(numbers, expected,
+                           "Step titles for major version \(major) must be numbered 1...\(numbers.count) consecutively, got \(numbers)")
+        }
     }
 }

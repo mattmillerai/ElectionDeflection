@@ -16,6 +16,7 @@ final class MessageFilterExtension: ILMessageFilterExtension {
     var keywords: [String] = []
     var whitelistContexts: [String: [String]] = [:]
     var combinedTerms: [[String]] = []
+    private var keywordEngine = KeywordFilterEngine(keywords: [], whitelistContexts: [:], combinedTerms: [])
 
     // MARK: - Core ML Text Classifier
     private var mlModel: MLModel?
@@ -23,18 +24,22 @@ final class MessageFilterExtension: ILMessageFilterExtension {
     override init() {
         super.init()
         // NOTE: seedDefaultFilterDataIfNeeded() writes are silently blocked by the
-        // ILMessageFilterExtension sandbox — data is only seeded by the main app. So
-        // load from the shared container, but fall back to DefaultFilterData whenever a
-        // list comes back empty (i.e. before the main app has ever been opened), so the
-        // extension always filters instead of allowing everything through.
+        // ILMessageFilterExtension sandbox — data is only seeded/refreshed by the main
+        // app. So read SharedDataManager.effectiveFilterData(), which falls back to
+        // DefaultFilterData whenever the shared container's copy is empty OR stale
+        // (e.g. before the main app has ever been opened, or after a filter-data update
+        // the main app hasn't re-launched to pick up since — see issue #3), so the
+        // extension always filters with the current data instead of a stale or empty one.
         SharedDataManager.shared.seedDefaultFilterDataIfNeeded()
-        // Cache filter data in memory for fast per-message access
-        let loadedKeywords = SharedDataManager.shared.keywordList
-        self.keywords = loadedKeywords.isEmpty ? DefaultFilterData.keywords : loadedKeywords
-        let loadedWhitelist = SharedDataManager.shared.whitelistContexts
-        self.whitelistContexts = loadedWhitelist.isEmpty ? DefaultFilterData.whitelistContexts : loadedWhitelist
-        let loadedCombined = SharedDataManager.shared.combinedTerms
-        self.combinedTerms = loadedCombined.isEmpty ? DefaultFilterData.combinedTerms : loadedCombined
+        let effective = SharedDataManager.shared.effectiveFilterData()
+        self.keywords = effective.keywords
+        self.whitelistContexts = effective.whitelistContexts
+        self.combinedTerms = effective.combinedTerms
+        self.keywordEngine = KeywordFilterEngine(
+            keywords: effective.keywords,
+            whitelistContexts: effective.whitelistContexts,
+            combinedTerms: effective.combinedTerms
+        )
         filterLog("MessageFilterExtension initialized")
         filterLog("Loaded keywords: \(self.keywords.count) keywords")
         filterLog("Loaded whitelist contexts: \(self.whitelistContexts.count) contexts")
@@ -91,34 +96,6 @@ final class MessageFilterExtension: ILMessageFilterExtension {
 
     // MARK: - Keyword Filtering
 
-    private func isKeywordInWhitelistedContext(_ keyword: String, in messageBody: String) -> Bool {
-        guard let whitelistedPhrases = whitelistContexts[keyword.lowercased()] else {
-            return false
-        }
-
-        for whitelistedPhrase in whitelistedPhrases {
-            if messageBody.lowercased().contains(whitelistedPhrase.lowercased()) {
-                logger.debug("Keyword '\(keyword, privacy: .public)' found in whitelisted context: '\(whitelistedPhrase, privacy: .public)'")
-                return true
-            }
-        }
-
-        return false
-    }
-
-    private func containsCombinedTerms(_ messageBody: String) -> Bool {
-        let lowercaseMessage = messageBody.lowercased()
-
-        for termGroup in combinedTerms {
-            if termGroup.allSatisfy({ lowercaseMessage.contains($0.lowercased()) }) {
-                logger.debug("Combined terms detected: \(termGroup.joined(separator: ", "), privacy: .public)")
-                return true
-            }
-        }
-
-        return false
-    }
-
     private func determineAction(for messageBody: String) -> ILMessageFilterAction {
         filterLog("Evaluating message (\(messageBody.count) chars)")
 
@@ -134,36 +111,24 @@ final class MessageFilterExtension: ILMessageFilterExtension {
         let agree = (keywordLabel == mlLabel) ? "AGREE" : "DISAGREE"
         filterLog("Keyword: \(keywordLabel) | ML: \(mlLabel) | \(agree)")
 
-        // Pro tier: use ML result if available; Free tier: keyword only
+        // Pro tier: use ML result if available, unless the user opted into
+        // keyword-only. Free tier: keyword only.
         let isProTier = SharedDataManager.shared.isProTier
-        if isProTier, let label = mlResult {
+        let preferKeyword = SharedDataManager.shared.preferKeywordFiltering
+        if isProTier, !preferKeyword, let label = mlResult {
             filterLog("Pro tier — using ML classification")
             return label == "political" ? .junk : .allow
         }
-        if !isProTier {
+        if isProTier, preferKeyword {
+            filterLog("Pro tier — user chose keyword classification")
+        } else if !isProTier {
             filterLog("Free tier — using keyword classification")
         }
         return keywordAction
     }
 
     private func keywordFilter(for messageBody: String) -> ILMessageFilterAction {
-        if containsCombinedTerms(messageBody) {
-            return .junk
-        }
-
-        let lowercasedMessage = messageBody.lowercased()
-
-        for keyword in keywords {
-            if lowercasedMessage.contains(keyword.lowercased()) {
-                if isKeywordInWhitelistedContext(keyword, in: messageBody) {
-                    continue
-                } else {
-                    return .junk
-                }
-            }
-        }
-
-        return .allow
+        keywordEngine.isPolitical(messageBody) ? .junk : .allow
     }
 }
 
