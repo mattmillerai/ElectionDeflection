@@ -669,6 +669,33 @@ final class SharedDataManagerTests: XCTestCase {
             violations.joined(separator: "\n"))
     }
 
+    // Guardrail (Story 11.3): typed text on the submission screens lives in memory
+    // only. It survives a fold through view identity, never through persistence.
+    // FileManager is allowed: the share extension copies the shared image to a temp file.
+    func testSubmissionScreensDoNotPersistTypedText() {
+        let files = [
+            "ElectionDeflection/Views/TextSubmissionView.swift",
+            "ElectionDeflectionShare/ShareExtensionView.swift"
+        ]
+
+        let forbiddenPatterns = ["@SceneStorage", "@AppStorage", "UserDefaults", "Keychain"]
+
+        var violations: [String] = []
+        for file in files {
+            guard let contents = try? String(contentsOf: projectRoot.appendingPathComponent(file), encoding: .utf8) else {
+                XCTFail("Cannot read \(file)")
+                continue
+            }
+            for pattern in forbiddenPatterns where contents.contains(pattern) {
+                violations.append("\(file) contains '\(pattern)'")
+            }
+        }
+
+        XCTAssertTrue(violations.isEmpty,
+            "Submission screens must not persist typed text:\n" +
+            violations.joined(separator: "\n"))
+    }
+
     // MARK: - V2 Welcome Modal Tests (Story 6.1)
 
     func testHasSeenV2WelcomeDefaultsToFalse() {
@@ -726,9 +753,9 @@ final class SharedDataManagerTests: XCTestCase {
 
     // --- Task 1: Data Parity Verification ---
 
-    func testExactKeywordCountIs474() {
-        XCTAssertEqual(DefaultFilterData.keywords.count, 474,
-                       "keyword list as of edbc0a1 must contain exactly 474 keywords")
+    func testExactKeywordCountIs491() {
+        XCTAssertEqual(DefaultFilterData.keywords.count, 491,
+                       "keyword list (2026 triage additions) must contain exactly 491 keywords")
     }
 
     func testExactWhitelistContextKeysIs6WithTotal14Phrases() {
@@ -942,8 +969,8 @@ final class SharedDataManagerTests: XCTestCase {
     func testDataSeedingWorksWithoutProTier() {
         sut.isProTier = false
         sut.seedDefaultFilterDataIfNeeded()
-        XCTAssertEqual(sut.keywordList.count, 474,
-                       "Data seeding must work for Free tier (474 keywords)")
+        XCTAssertEqual(sut.keywordList.count, 491,
+                       "Data seeding must work for Free tier (491 keywords)")
         XCTAssertEqual(sut.whitelistContexts.count, 6,
                        "Data seeding must populate all 6 whitelist context groups for Free tier")
         XCTAssertEqual(sut.combinedTerms.count, 12,
@@ -1012,8 +1039,18 @@ final class OnboardingStepsTests: XCTestCase {
                           "The Filter Unknown Senders toggle must be explained before the user is asked to select ElectionDeflection")
     }
 
+    func testIOS27StepsResolveToIOS26Path() {
+        // iPhone Duo ships with iOS 27.1; its Settings path matches iOS 26 (Story 11.7, D8)
+        let ios27 = OnboardingStep.steps(forOSMajorVersion: 27)
+        let ios26 = OnboardingStep.steps(forOSMajorVersion: 26)
+
+        XCTAssertEqual(ios27.map(\.title), ios26.map(\.title))
+        XCTAssertEqual(ios27.map(\.description), ios26.map(\.description))
+        XCTAssertEqual(ios27.map(\.imageName), ios26.map(\.imageName))
+    }
+
     func testStepTitlesAreNumberedConsecutivelyForEachOSVersion() {
-        for major in [26, 18, 17] {
+        for major in [27, 26, 18, 17] {
             let steps = OnboardingStep.steps(forOSMajorVersion: major)
             let numbers = stepNumbers(from: steps)
             let expected = Array(1...numbers.count)
