@@ -44,9 +44,14 @@ enum DefaultFilterData {
         // 2026 cycle — from user-submission triage (tools/feedback). The 2024 short-domains
         // above (gv/gop24) are stale; these are the rotating 2026 hosts seen in the wild.
         "us-26.co", "win26.io", "usa26.io", "26u5a.co", "rght26.io", "win-red.io", "26-win.org", "right26.co", "rep2026.co",
-        // Spam opt-out obfuscation legit senders never use (they write "reply STOP"); "stop to end" is
-        // intentionally excluded — it collides with legitimate "reply STOP to end" language.
-        "stop=end"
+        // 2026 fundraising hosts from the 2026-10-28 KV triage: each has ≥3 labeled:political hits and
+        // 0 not_political hits. Bare hosts, so both "host/path" and "https://host/path" (and t./r. subdomains) match.
+        "crushmaga.io", "raaction.io", "edw-now.org", "progressaf.com", "takeoverfund.io", "demsfight.com", "win-26.us",
+        "bold-lead.org", "ameripacfuture.org", "pia4fl.io", "helpdemswin.io", "gop-poll.com", "26text.com", "an4fl.com",
+        // Spam opt-out obfuscation legit senders never use (they write "reply STOP"); "stop to end" and
+        // "reply stop to opt-out" are intentionally excluded (combined-only) — they collide with legitimate
+        // "reply STOP to end" language.
+        "stop=end", "stop2end", "end2end", "stoptoend"
     ]
 
     // MARK: - Whitelist Contexts (v1.0)

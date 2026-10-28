@@ -405,4 +405,146 @@ final class MessageFilterExtensionTests: XCTestCase {
         XCTAssertFalse(engine.isPolitical("Elon Musk announced a new rocket launch."),
                        "Only one half of a combined-terms pair should not match")
     }
+
+    // MARK: - 2026 Submission Triage Keywords (Story 13.1)
+
+    private static let triageOptOutTerms = ["stop2end", "end2end", "stoptoend"]
+
+    private static let triageHosts = [
+        "crushmaga.io", "raaction.io", "edw-now.org", "progressaf.com", "takeoverfund.io",
+        "demsfight.com", "win-26.us", "bold-lead.org", "ameripacfuture.org", "pia4fl.io",
+        "helpdemswin.io", "gop-poll.com", "26text.com", "an4fl.com"
+    ]
+
+    private static var triageTerms: [String] { triageOptOutTerms + triageHosts }
+
+    /// Engine holding ONLY the new terms, so a match proves the new term (not an older keyword) fired.
+    private func triageOnlyEngine() -> KeywordFilterEngine {
+        KeywordFilterEngine(keywords: Self.triageTerms, whitelistContexts: [:], combinedTerms: [])
+    }
+
+    private var projectRoot: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()  // ElectionDeflectionTests/
+            .deletingLastPathComponent()  // project root
+    }
+
+    func testTriageTermsAreStandaloneDefaultKeywords() {
+        for term in Self.triageTerms {
+            XCTAssertTrue(DefaultFilterData.keywords.contains(term), "\"\(term)\" should be a standalone default keyword")
+        }
+    }
+
+    func testTriageOptOutTermsCatchPoliticalExamples() {
+        let engine = triageOnlyEngine()
+        // Short paraphrased fixtures (not verbatim submissions).
+        let examples = [
+            "stop2end": "Your 2026 member card is about to lapse. Renew now to keep fighting. Stop2End",
+            "end2end": "Final hours to double your gift before the deadline! Reply END2END to quit",
+            "stoptoend": "We need 500 patriots by midnight. Chip in now. StopToEnd"
+        ]
+        for term in Self.triageOptOutTerms {
+            let body = try! XCTUnwrap(examples[term])
+            XCTAssertTrue(engine.isPolitical(body), "\"\(term)\" should flag: \(body)")
+        }
+    }
+
+    func testTriageHostsCatchBareAndSchemedLinks() {
+        let engine = KeywordFilterEngine(
+            keywords: DefaultFilterData.keywords,
+            whitelistContexts: DefaultFilterData.whitelistContexts,
+            combinedTerms: DefaultFilterData.combinedTerms
+        )
+        for host in Self.triageHosts {
+            // Neutral wording so only the host can trigger the match.
+            let forms = [
+                "Quick question for you, see here: \(host)/a1b2c3",
+                "Quick question for you, see here: https://\(host)/a1b2c3",
+                "Quick question for you, see here: t.\(host)/a1b2c3"
+            ]
+            for body in forms {
+                XCTAssertTrue(engine.isPolitical(body), "\"\(host)\" should flag: \(body)")
+                XCTAssertTrue(triageOnlyEngine().isPolitical(body), "Match must come from \"\(host)\" itself: \(body)")
+            }
+        }
+    }
+
+    func testTriageTermsDoNotFireOnTrainingDataNotPolitical() throws {
+        let url = projectRoot.appendingPathComponent("TrainingData/training_data_v1.json")
+        let rows = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [[String: String]]
+        let notPolitical = try XCTUnwrap(rows).filter { $0["label"] == "not_political" }.compactMap { $0["text"] }
+        XCTAssertFalse(notPolitical.isEmpty, "training_data_v1.json should contain not_political rows")
+
+        let engine = triageOnlyEngine()
+        let hits = notPolitical.filter { engine.isPolitical($0) }
+        XCTAssertTrue(hits.isEmpty, "New triage terms must not fire on training not_political rows:\n\(hits.joined(separator: "\n"))")
+    }
+
+    func testTriageTermsDoNotFireOnLabeledNotPoliticalSubmissions() {
+        // Short paraphrases of the 2026-10-28 labeled:not_political KV items (no verbatim text).
+        let notPolitical = [
+            "Hi! Our hiring team has remote support roles open, $200-800 per day, flexible hours.",
+            "Tired of high energy bills? This plug-in device steadies your home's power.",
+            "A recruiter here: your background stood out, we have remote openings.",
+            "Help share the gospel with World Cup fans from closed countries. Give: red-win.org/x1 stop=end",
+            "Your cloud storage renewal failed; update payment or your files will be removed.",
+            "Hi, I noticed your property on Elm Ct and wanted to talk about a purchase. Reply STOP to opt out",
+            "Job fair in 3 days, see the employer list: test.net/x2 To opt-out, reply STOP",
+            "Request a free prayer bookmark for military members: ptvictory.co/x3 stop=end",
+            "$50 sends gospel booklets to World Cup fans. Give: us-26.co/x4 stop=end",
+            "Hi, it's the painting crew working in your area, want an estimate?",
+            "Payment alert: a $166 store charge is on hold due to unusual activity.",
+            "Remote recruitment team here about a part-time position that fits you.",
+            "Claim a free DVD set on ancient Christianity: usa26.io/x5 stop=end",
+            "Gas over $4? Drivers plug this into their cars to save fuel: gwatng.com/x6 STOP to end",
+            "Get ready for Easter with 12 days of scripture and prayer: prebrn.us/x7 STOP=end"
+        ]
+        let engine = triageOnlyEngine()
+        for body in notPolitical {
+            XCTAssertFalse(engine.isPolitical(body), "New triage terms must not fire on: \(body)")
+        }
+    }
+
+    func testStop2EndKnownCollisionIsOptOutSpam() {
+        // The only labeled:not_political item containing a new term is a get-rich-quick spam blast
+        // using the "Stop2End" obfuscation. Accepted 2026-10-28 (Matt left the call to dev): filtering it costs nothing.
+        let body = "FINAL WARNING: the AI profits program is closing. Start earning on autopilot now! Stop2End"
+        XCTAssertTrue(triageOnlyEngine().isPolitical(body), "Documented, accepted \"stop2end\" collision")
+    }
+
+    func testReplyStopVariantsStayCombinedOnly() {
+        XCTAssertFalse(DefaultFilterData.keywords.contains("stop to end"))
+        XCTAssertFalse(DefaultFilterData.keywords.contains("reply stop to opt-out"))
+        let engine = KeywordFilterEngine(
+            keywords: DefaultFilterData.keywords,
+            whitelistContexts: DefaultFilterData.whitelistContexts,
+            combinedTerms: DefaultFilterData.combinedTerms
+        )
+        XCTAssertFalse(engine.isPolitical("Your table for two is confirmed for 7pm. Reply STOP to opt-out."),
+                       "Legitimate \"Reply STOP to opt-out\" text must not be flagged")
+        XCTAssertFalse(engine.isPolitical("Your prescription is ready for pickup. Text STOP to end alerts."),
+                       "Legitimate \"STOP to end\" text must not be flagged")
+    }
+
+    func testFingerprintChangesWithTriageAdditions() {
+        let preTriageKeywords = DefaultFilterData.keywords.filter { !Self.triageTerms.contains($0) }
+        let preTriageFingerprint = DefaultFilterData.fingerprint(
+            keywords: preTriageKeywords,
+            whitelistContexts: DefaultFilterData.whitelistContexts,
+            combinedTerms: DefaultFilterData.combinedTerms
+        )
+        XCTAssertNotEqual(preTriageFingerprint, DefaultFilterData.fingerprint,
+                          "Adding the triage terms must change the fingerprint so seeded lists refresh")
+
+        // A user seeded with the pre-triage list gets the new terms on the next reseed.
+        dataManager.keywordList = preTriageKeywords
+        dataManager.whitelistContexts = DefaultFilterData.whitelistContexts
+        dataManager.combinedTerms = DefaultFilterData.combinedTerms
+        dataManager.filterDataFingerprint = preTriageFingerprint
+
+        dataManager.seedDefaultFilterDataIfNeeded()
+
+        XCTAssertEqual(dataManager.keywordList, DefaultFilterData.keywords)
+        XCTAssertEqual(dataManager.filterDataFingerprint, DefaultFilterData.fingerprint)
+    }
 }

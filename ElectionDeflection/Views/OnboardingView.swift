@@ -110,6 +110,7 @@ struct OnboardingStep {
 struct OnboardingView: View {
     var onComplete: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var currentPage = 0
 
     private var steps: [OnboardingStep] {
@@ -120,82 +121,89 @@ struct OnboardingView: View {
     private var totalPages: Int { steps.count + 1 }
 
     var body: some View {
-        VStack(spacing: 0) {
-            TabView(selection: $currentPage) {
-                // Initial Screen - App Icon with Background Color and Introductory Text
-                InitialIconView()
-                    .tag(0)
+        GeometryReader { proxy in
+            VStack(spacing: 0) {
+                TabView(selection: $currentPage) {
+                    // Initial Screen - App Icon with Background Color and Introductory Text
+                    InitialIconView()
+                        .tag(0)
 
-                ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
-                    StepView(
-                        title: step.title,
-                        description: step.description,
-                        imageName: step.imageName
-                    )
-                    .tag(index + 1)
-                }
-            }
-            .tabViewStyle(PageTabViewStyle())
-            .background(Color.brandNavy.edgesIgnoringSafeArea(.all))
-
-            // Navigation Button
-            VStack(spacing: 12) {
-                let isLastPage = currentPage >= totalPages - 1
-
-                Button(action: {
-                    if isLastPage {
-                        SharedDataManager.shared.hasCompletedOnboarding = true
-                        SharedDataManager.shared.hasSeenV2Welcome = true
-                        if SharedDataManager.shared.onboardingCompletedDate == nil {
-                            SharedDataManager.shared.onboardingCompletedDate = Date()
-                            UpgradeNotificationManager.scheduleUpgradeNotification()
-                        }
-                        if let onComplete = onComplete {
-                            onComplete()
-                        } else {
-                            dismiss()
-                        }
-                    } else {
-                        withAnimation {
-                            currentPage += 1
-                        }
-                    }
-                }) {
-                    Text(isLastPage ? (onComplete != nil ? "Get Started" : "Done") : "Next")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(
-                            LinearGradient(gradient: Gradient(colors: [Color.orange, Color.red]),
-                                           startPoint: .leading,
-                                           endPoint: .trailing)
+                    ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                        StepView(
+                            title: step.title,
+                            description: step.description,
+                            imageName: step.imageName
                         )
-                        .cornerRadius(12)
-                        .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 5)
-                }
-                .animation(.easeInOut(duration: 0.2), value: isLastPage)
-
-                Button(action: {
-                    withAnimation {
-                        currentPage = 1
+                        .tag(index + 1)
                     }
-                }) {
-                    Text("Back to Step 1")
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.8))
                 }
-                .opacity(isLastPage ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: isLastPage)
-                .allowsHitTesting(isLastPage)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 40)
-            .background(Color.brandNavy.edgesIgnoringSafeArea(.bottom))
+                .tabViewStyle(PageTabViewStyle())
+                .background(Color.brandNavy.edgesIgnoringSafeArea(.all))
 
+                // Navigation Button
+                VStack(spacing: 12) {
+                    let isLastPage = currentPage >= totalPages - 1
+
+                    Button(action: {
+                        if isLastPage {
+                            SharedDataManager.shared.hasCompletedOnboarding = true
+                            SharedDataManager.shared.hasSeenV2Welcome = true
+                            if SharedDataManager.shared.onboardingCompletedDate == nil {
+                                SharedDataManager.shared.onboardingCompletedDate = Date()
+                                UpgradeNotificationManager.scheduleUpgradeNotification()
+                            }
+                            if let onComplete = onComplete {
+                                onComplete()
+                            } else {
+                                dismiss()
+                            }
+                        } else {
+                            withAnimation {
+                                currentPage += 1
+                            }
+                        }
+                    }) {
+                        Text(isLastPage ? (onComplete != nil ? "Get Started" : "Done") : "Next")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                LinearGradient(gradient: Gradient(colors: [Color.orange, Color.red]),
+                                               startPoint: .leading,
+                                               endPoint: .trailing)
+                            )
+                            .cornerRadius(12)
+                            .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 5)
+                    }
+                    .animation(.easeInOut(duration: 0.2), value: isLastPage)
+
+                    Button(action: {
+                        withAnimation {
+                            currentPage = 1
+                        }
+                    }) {
+                        Text("Back to Step 1")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .opacity(isLastPage ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: isLastPage)
+                    .allowsHitTesting(isLastPage)
+                }
+                .readableWidth()
+                .padding(.horizontal, 20)
+                // Tighter in compact height (landscape) so the page keeps more room;
+                // always above the home indicator
+                .padding(.top, verticalSizeClass == .compact ? 12 : 20)
+                .padding(.bottom, max(verticalSizeClass == .compact ? 16 : 40, proxy.safeAreaInsets.bottom))
+                .background(Color.brandNavy.edgesIgnoringSafeArea(.all))
+
+            }
+            // Pages and buttons respect the side safe areas (landscape); only the
+            // navy backgrounds extend under them
+            .edgesIgnoringSafeArea(.vertical)
         }
-        .edgesIgnoringSafeArea(.all)
     }
 }
 
@@ -208,64 +216,70 @@ struct InitialIconView: View {
             Color.brandNavy
                 .edgesIgnoringSafeArea(.all) // Ensure the color covers the entire screen
             
-            VStack(spacing: 20) {
-                
-                // Icon in the Center
-                Image("app_icon_no_background")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 150, height: 150)
-                    .padding(.top, 40)
-
-                // Introductory Text
+            PageScrollView { _ in
                 VStack(spacing: 20) {
-                    Text("Welcome to ElectionDeflection")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white) // Set text color to white
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 0)
-                        .minimumScaleFactor(0.5)
-
-                    Text("ElectionDeflection filters out political spam texts by using your phone's SMS filtering feature.")
-                        .font(.body)
-                        .foregroundColor(.white) // Set text color to white
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                        .lineLimit(nil) // Allow wrapping
-                        .minimumScaleFactor(0.75) // Scale down text if necessary
-
-                    Text("Your privacy is important to us. We do not save or transmit any of your data. You can review the full source code below.")
-                        .font(.body)
-                        .foregroundColor(.white) // Set text color to white
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                        .lineLimit(nil) // Allow wrapping
-                        .minimumScaleFactor(0.65) // Scale down text if necessary
-
-                    if let url = URL(string: "https://github.com/MillerMedia/ElectionDeflection") {
-                        Link(destination: url) {
-                            HStack {
-                                Image(systemName: "chevron.left.slash.chevron.right") // SF Symbol for "code" or custom GitHub logo
-                                    .resizable()
-                                    .frame(width: 20, height: 20)
-                                    .foregroundColor(.white)
-                                Text("View Source Code")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                            }
-                            .padding()
-                            .background(Color.black)
-                            .cornerRadius(8)
-                        }
-                        .padding(.top, 20)
-                    }
-                }
-                .padding()
                 
-                Spacer()
+                    // Icon in the Center
+                    Image("app_icon_no_background")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 150, height: 150)
+                        .padding(.top, 40)
+
+                    // Introductory Text
+                    VStack(spacing: 20) {
+                        Text("Welcome to ElectionDeflection")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white) // Set text color to white
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 0)
+                            .minimumScaleFactor(0.5)
+                            .fixedSize(horizontal: false, vertical: true) // Wrap, never truncate; the page scrolls instead
+
+                        Text("ElectionDeflection filters out political spam texts by using your phone's SMS filtering feature.")
+                            .font(.body)
+                            .foregroundColor(.white) // Set text color to white
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                            .lineLimit(nil) // Allow wrapping
+                            .minimumScaleFactor(0.75) // Scale down text if necessary
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text("Your privacy is important to us. We do not save or transmit any of your data. You can review the full source code below.")
+                            .font(.body)
+                            .foregroundColor(.white) // Set text color to white
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                            .lineLimit(nil) // Allow wrapping
+                            .minimumScaleFactor(0.65) // Scale down text if necessary
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        if let url = URL(string: "https://github.com/MillerMedia/ElectionDeflection") {
+                            Link(destination: url) {
+                                HStack {
+                                    Image(systemName: "chevron.left.slash.chevron.right") // SF Symbol for "code" or custom GitHub logo
+                                        .resizable()
+                                        .frame(width: 20, height: 20)
+                                        .foregroundColor(.white)
+                                    Text("View Source Code")
+                                        .font(.headline)
+                                        .foregroundColor(.white)
+                                }
+                                .padding()
+                                .background(Color.black)
+                                .cornerRadius(8)
+                            }
+                            .padding(.top, 20)
+                        }
+                    }
+                    .padding()
+                    .readableWidth()
+                
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity) // Ensure VStack fills the entire ZStack
         }
     }
 }
@@ -276,39 +290,126 @@ struct StepView: View {
     let description: String
     let imageName: String?
 
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    @ViewBuilder private var titleAndDescription: some View {
+        Text(title)
+            .font(.system(.largeTitle, design: .rounded).weight(.bold))  // 34 pt at the default size; scales with Dynamic Type
+            .foregroundColor(.white) // Set text color to white
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true) // Wrap, never truncate; the page scrolls instead
+            .padding(.top, 20)
+
+        // Align description text directly below the title
+        Text(description)
+            .font(.body)
+            .foregroundColor(.white) // Set text color to white
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal)
+    }
+
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 20) {
-                Text(title)
-                    .font(.system(size: 34, weight: .bold, design: .rounded))  // Custom system font
-                    .foregroundColor(.white) // Set text color to white
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 20)
+        PageScrollView { page in
+            let mode = AdaptiveLayout.mode(horizontalSizeClass: horizontalSizeClass, availableWidth: page.width)
+            let columnMaxWidth = AdaptiveLayout.columnMaxWidth(for: mode)
 
-                // Align description text directly below the title
-                Text(description)
-                    .font(.body)
-                    .foregroundColor(.white) // Set text color to white
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+            // Text and image side by side in two-column mode, stacked otherwise
+            // Identity-preserving: do not turn into if/else around stateful views.
+            // (The mode branches inside hold only stateless Text, Spacer and Image.)
+            AdaptiveStack(mode: mode, spacing: 20, alignment: .center) {
+                if mode == .twoColumn {
+                    VStack(spacing: 20) {
+                        titleAndDescription
+                    }
+                    .frame(maxWidth: columnMaxWidth)
+                } else {
+                    // Direct children of the stack, exactly as before Story 11.7
+                    titleAndDescription
+                }
 
-                Spacer(minLength: 10) // Spacer to ensure consistent spacing
+                if mode == .singleColumn {
+                    Spacer(minLength: 10) // Spacer to ensure consistent spacing
+                }
 
                 if let imageName = imageName {
                     Image(imageName)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(
-                            maxWidth: geometry.size.width * 1, // 100% of the screen width
-                            maxHeight: geometry.size.height * 0.6 // 40% of the screen height
+                            maxWidth: min(page.width, columnMaxWidth),
+                            minHeight: min(160, page.height * 0.6), // On short pages scroll rather than shrink the image away
+                            maxHeight: page.height * (mode == .twoColumn ? 0.7 : 0.6)
                         )
                         .padding(.top, 10)
                 }
 
-                Spacer() // Bottom spacer to push everything upwards consistently
+                if mode == .singleColumn {
+                    Spacer() // Bottom spacer to push everything upwards consistently
+                }
             }
             .padding()
+            .frame(maxWidth: mode == .twoColumn ? .infinity : nil) // Center the columns side by side
         }
+    }
+}
+
+/// A page of the setup pager: its content fills the page (spacers and images
+/// size as they would without scrolling) and scrolls when it is taller, for
+/// example on short windows or at large Dynamic Type sizes. A scrolling page
+/// ends above the page dots so content never sits under them at rest.
+private struct PageScrollView<Content: View>: View {
+    @ViewBuilder let content: (CGSize) -> Content
+    @State private var overflows = false
+
+    /// The page dots sit about 27 pt above the bottom of the pager.
+    private let pageDotsClearance: CGFloat = 44
+
+    var body: some View {
+        GeometryReader { geometry in
+            ScrollView {
+                content(geometry.size)
+                    .fillPageHeight(geometry.size.height)
+                    .background(GeometryReader { content in
+                        Color.clear.preference(key: PageContentHeightKey.self, value: content.size.height)
+                    })
+            }
+            .onPreferenceChange(PageContentHeightKey.self) { height in
+                overflows = height > geometry.size.height + 0.5
+            }
+        }
+        .padding(.bottom, overflows ? pageDotsClearance : 0)
+    }
+}
+
+private struct PageContentHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+/// Lays out its content as if it were exactly `minHeight` tall, so spacers and
+/// flexible images size the same as outside a `ScrollView`, but grows taller
+/// when the content needs more room so it can scroll. Content shorter than the
+/// page (side-by-side columns) is centered vertically, clear of a top status bar.
+private struct FillPageHeightLayout: Layout {
+    let minHeight: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let content = subviews.first else { return .zero }
+        let size = content.sizeThatFits(ProposedViewSize(width: proposal.width, height: minHeight))
+        return CGSize(width: proposal.width ?? size.width, height: max(minHeight, size.height))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: CGPoint(x: bounds.minX, y: bounds.midY), anchor: .leading, proposal: ProposedViewSize(width: bounds.width, height: minHeight))
+    }
+}
+
+private extension View {
+    func fillPageHeight(_ height: CGFloat) -> some View {
+        FillPageHeightLayout(minHeight: height) { self }
     }
 }
 

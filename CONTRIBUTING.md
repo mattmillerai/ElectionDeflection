@@ -9,7 +9,7 @@ Thanks for your interest in contributing to ElectionDeflection! This guide will 
 3. Follow the build instructions in [README.md](README.md)
 
 **Requirements:**
-- Xcode 16.0+
+- Xcode 26.0+ (required for App Store Connect uploads)
 - iOS 16.0+ deployment target
 - Apple Developer Program membership (for code signing and MessageFilterExtension testing)
 
@@ -52,6 +52,21 @@ Have an idea? [Open a feature request](https://github.com/mattmillerai/ElectionD
 - Use descriptive variable and function names
 - Keep functions focused and concise
 - Add comments only where the logic isn't self-evident
+
+### Adaptive layout and iPhone Duo
+
+- **iOS 16 floor.** The deployment target stays iOS 16.0 and CI builds with Xcode 26. Any symbol newer than iOS 16 needs `#available` plus an `#if` compile-time guard so the Xcode 26 build still compiles. Don't adopt the iOS 27.1-only `ArrangementView`, `ReservedRegion`, or `toolbarVerticalEdge`.
+- **Lay out by available space.** Use `@Environment(\.horizontalSizeClass)` and the measured width (`GeometryReader`, `ViewThatFits`). Never branch on `UIDevice.current.orientation`, `userInterfaceIdiom`, `UIScreen.main`, or fixed device sizes.
+- **Keep state across fold and rotate.** Switch layouts with `AnyLayout` (`HStackLayout` / `VStackLayout`) or `ViewThatFits`, not `if wide { A } else { B }` around views that hold state.
+- **Never persist typed text** to survive a fold or resize (no `@SceneStorage`, `@AppStorage`, `UserDefaults`, or files).
+
+| Duo display | Points | Size class (h × v) |
+|---|---|---|
+| Outer, portrait | 466×678 | compact × regular |
+| Outer, landscape | 678×466 | compact × compact |
+| Inner (half-open or open) | 669×951 / 951×669 | regular × regular |
+
+Hinge angle does not change size classes. Background: Epic 11 in `_bmad-output/planning-artifacts/epics.md` (dev repo only).
 
 ### Project Structure
 
