@@ -14,7 +14,7 @@ enum DefaultFilterData {
     // MARK: - Keywords (v1.0 — 400+ political terms)
 
     static let keywords: [String] = [
-        "trump", "vance", "harris", "walz", "election", "vote", "campaign", "giuliani", "kamala", "democrat", "republican", "senate", "cruz", "congress", "impeach", "ballot", "radical left", "far right", "cmp.lk", "jim jordan", "fundprogress", "dems ", "gop ", " gop:", "kellyanne conway", "steve garvey", "gov. abbott", "governor abbott", "win4tx.org", "biden", "potus", " dems ", "left-wing", "right-wing", "super pac", "actblue", "winred", "dnc ", "rnc ", "pelosi", "chuck schumer", "mitch mcconnell", "lindsey graham", "bernie sanders", "elizabeth warren", "alexandria ocasio-cortez", "aoc ", "ron desantis", "mike pence", "nikki haley", "newsom", "marjorie taylor greene", "matt gaetz", "lauren boebert", "kevin mccarthy", "dm24.co", "bob casey", "dave mccormick", "rep-24", "reagan", "usred.co", "kari lake", "hannity", "maddow", "24-red", "gop-victory.com", "vivek", "ramaswamy", "cheney", "clinton", "obama", "dan osborn", "deb fischer", "vote24.io", "savedemocracypac", "letamericavote", "momsfedup", "lincoln project", "electdemsnow", "boldpac", "hmpac", "electdemocracticwomen", "bluewave", "demmajority", "retireddemocrat", "demgovs", "tim kaine", "trustrightusa", "israelsrvy", "cbcpac", "colin allred", "colinallred.com", "24win.co", "blue wave", "goplink", "tth07", "runityfund", "right-24", "pompeo", "gv077.org", "byron donalds", "gop.", "demturnout", "turnout", "go-24", "tammy baldwin", "fundraising", "elissa slotkin", "haley stevens", "haley4mi", "realclearpolitics", "shawn harris", "charlie kirk", "tpusa", "turning point", "laura loomer", "newt gingrich", "safegive24", "win24", "presidential poll", "drain the swamp", "trustgopusa", "deep state", " cnn ", " msnbc ", " fox news ", "dems-vote", "schiff", "secureliberty", "garvey", "anna paulina luna", "doj", "givegopnow", "robert f. kennedy", "rfk", "ron johnson", "senator", "rep.", "team mackenzie", "the left", "derrick van orden", "kennedy", "rubio", "for.gop", "hawley", " sen. ", "clarence thomas", "patriot", "donor", "gopgift", "nancy mace", "jack smith", "soros", ".gop/", "bannon", "stephen miller", "usgiv", "gv070", "growth action", "kyrsten sinema", "ruben gallego", "kari lake", "rick scott", "mucarsel-powell", "ben cardin", "alsobrooks", "larry hogan", "mike rogers", "stabenow", "slotkin", "jon tester", "tim sheehy", "manchin", "klobuchar", "josh hawley", "romney", "electoral", "don jr", " maga ", "blue victory", "bluevictory", "gv088.org", "8x match", "9x match", "10x match", "gopclick.io", "redsend.net", "hegseth", "scalise", "giv.win", "gv099", "2024wave", "vtred",
+        "trump", "vance", "harris", "walz", "election", "vote", "giuliani", "kamala", "democrat", "republican", "senate", "cruz", "congress", "impeach", "ballot", "radical left", "far right", "cmp.lk", "jim jordan", "fundprogress", "dems ", "gop ", " gop:", "kellyanne conway", "steve garvey", "gov. abbott", "governor abbott", "win4tx.org", "biden", "potus", " dems ", "left-wing", "right-wing", "super pac", "actblue", "winred", "dnc ", "rnc ", "pelosi", "chuck schumer", "mitch mcconnell", "lindsey graham", "bernie sanders", "elizabeth warren", "alexandria ocasio-cortez", "aoc ", "ron desantis", "mike pence", "nikki haley", "newsom", "marjorie taylor greene", "matt gaetz", "lauren boebert", "kevin mccarthy", "dm24.co", "bob casey", "dave mccormick", "rep-24", "reagan", "usred.co", "kari lake", "hannity", "maddow", "24-red", "gop-victory.com", "vivek", "ramaswamy", "cheney", "clinton", "obama", "dan osborn", "deb fischer", "vote24.io", "savedemocracypac", "letamericavote", "momsfedup", "lincoln project", "electdemsnow", "boldpac", "hmpac", "electdemocracticwomen", "bluewave", "demmajority", "retireddemocrat", "demgovs", "tim kaine", "trustrightusa", "israelsrvy", "cbcpac", "colin allred", "colinallred.com", "24win.co", "blue wave", "goplink", "tth07", "runityfund", "right-24", "pompeo", "gv077.org", "byron donalds", "gop.", "demturnout", "turnout", "go-24", "tammy baldwin", "fundraising", "elissa slotkin", "haley stevens", "haley4mi", "realclearpolitics", "shawn harris", "charlie kirk", "tpusa", "turning point", "laura loomer", "newt gingrich", "safegive24", "win24", "presidential poll", "drain the swamp", "trustgopusa", "deep state", " cnn ", " msnbc ", " fox news ", "dems-vote", "schiff", "secureliberty", "garvey", "anna paulina luna", "doj", "givegopnow", "robert f. kennedy", "rfk", "ron johnson", "senator", "rep.", "team mackenzie", "the left", "derrick van orden", "kennedy", "rubio", "for.gop", "hawley", " sen. ", "clarence thomas", "patriot", "donor", "gopgift", "nancy mace", "jack smith", "soros", ".gop/", "bannon", "stephen miller", "usgiv", "gv070", "growth action", "kyrsten sinema", "ruben gallego", "kari lake", "rick scott", "mucarsel-powell", "ben cardin", "alsobrooks", "larry hogan", "mike rogers", "stabenow", "slotkin", "jon tester", "tim sheehy", "manchin", "klobuchar", "josh hawley", "romney", "electoral", "don jr", " maga ", "blue victory", "bluevictory", "gv088.org", "8x match", "9x match", "10x match", "gopclick.io", "redsend.net", "hegseth", "scalise", "giv.win", "gv099", "2024wave", "vtred",
         "gv000", "gv001", "gv002", "gv003", "gv004", "gv005", "gv006", "gv007", "gv008", "gv009",
         "gv010", "gv011", "gv012", "gv013", "gv014", "gv015", "gv016", "gv017", "gv018", "gv019",
         "gv020", "gv021", "gv022", "gv023", "gv024", "gv025", "gv026", "gv027", "gv028", "gv029",
@@ -48,6 +48,11 @@ enum DefaultFilterData {
         // 0 not_political hits. Bare hosts, so both "host/path" and "https://host/path" (and t./r. subdomains) match.
         "crushmaga.io", "raaction.io", "edw-now.org", "progressaf.com", "takeoverfund.io", "demsfight.com", "win-26.us",
         "bold-lead.org", "ameripacfuture.org", "pia4fl.io", "helpdemswin.io", "gop-poll.com", "26text.com", "an4fl.com",
+        // Round 2 of the same KV scan (same rule): campaign and PAC hosts outside the original triage list.
+        "sherrodbrown.com", "jamestalarico.com", "alaskans4mary.org", "bolddems.com", "readyforthefight.com", "jnk4us.co",
+        "2026give.com", "prochoicedems.org", "r4fp.org", "no-kings.io", "xavier4ca.com", "thehousepac.com", "vter.io",
+        // Round 3 (2.1.6): match-multiplier and economic-bait phrasing, plus the midterm cycle.
+        // (the match multipliers, "tariff rebate", "stimulus check" and "midterm" are combined-only; see combinedTerms)
         // Spam opt-out obfuscation legit senders never use (they write "reply STOP"); "stop to end" and
         // "reply stop to opt-out" are intentionally excluded (combined-only) — they collide with legitimate
         // "reply STOP to end" language.
@@ -82,7 +87,33 @@ enum DefaultFilterData {
         ],
         "reply stop": [
             ".edu"
-        ]
+        ],
+        // Keyed by the first term of a combined group (see combinedTerms): a matching phrase vetoes the group.
+        "5x match": DefaultFilterData.charityContexts,
+        "6x match": DefaultFilterData.charityContexts,
+        "7x match": DefaultFilterData.charityContexts,
+        "midterm": [
+            "midterm exam",
+            "midterm grade",
+            "midterm test",
+            "midterm paper",
+            "midterm project"
+        ],
+        // Political list vendors also send devotional/charity appeals with the same opt-out and hosts.
+        // Those are not political (2026-10-28 labeling policy), so these religious phrases bypass only
+        // these three keywords; any other political keyword in the text still matches.
+        "stop=end": DefaultFilterData.devotionalContexts,
+        "us-26.co": DefaultFilterData.devotionalContexts,
+        "usa26.io": DefaultFilterData.devotionalContexts
+    ]
+
+    private static let charityContexts = [
+        "charity", "st jude", "foundation", "nonprofit", "non-profit", "church", "ministry", "ministries",
+        "food bank", "shelter"
+    ]
+
+    private static let devotionalContexts = [
+        "gospel", "scripture", "prayer", "praying", "easter", "spiritually", "christianity", "god wants"
     ]
 
     // MARK: - Combined Terms (v1.0)
@@ -100,7 +131,30 @@ enum DefaultFilterData {
         ["democracy", "stop to end"],
         ["democracy", "reply stop"],
         ["democracy", "stop2end"],
+    ] + electionGatedGroups + campaignGatedGroups + donationGatedGroups
+
+    // Election/political words that make "midterm", "stimulus check" and "tariff rebate" political.
+    // Space-wrapped entries match whole words only (see KeywordFilterEngine) so "race" doesn't hit "embrace".
+    private static let electionWords = [
+        "vote", "voting", "ballot", "election", "candidate", " race ", "congress", "senate", "senator",
+        " gop ", "democrat", "democrats", "republican", "republicans", "trump", "biden", "campaign", " pac ",
+        "polls", " primary ", "house seat", "governor"
     ]
+
+    // Campaign-donation wording that makes the 5x/6x/7x match phrases political.
+    private static let donationWords = [
+        "chip in", "donate", "donation", "contribution", "campaign", "pitch in", " give "
+    ]
+
+    // "campaign" alone is also charity/marketing wording, so it needs an election word other than itself.
+    private static let campaignGatedGroups: [[String]] =
+        electionWords.filter { $0 != "campaign" }.map { ["campaign", $0] }
+
+    private static let electionGatedGroups: [[String]] =
+        ["midterm", "stimulus check", "tariff rebate"].flatMap { term in electionWords.map { [term, $0] } }
+
+    private static let donationGatedGroups: [[String]] =
+        ["5x match", "6x match", "7x match"].flatMap { term in donationWords.map { [term, $0] } }
 }
 
 // MARK: - Content Fingerprint
@@ -160,13 +214,38 @@ struct KeywordFilterEngine {
     }
 
     func isPolitical(_ body: String) -> Bool {
-        let lowercased = body.lowercased()
+        // Leading space so keywords written with a leading space (" maga ", " dems ") also
+        // match at the very start of a message.
+        let lowercased = " " + body.lowercased()
 
-        for group in combinedTerms where group.allSatisfy({ lowercased.contains($0.lowercased()) }) {
+        // Punctuation-as-space view of the message, padded on both ends, so space-wrapped
+        // keywords like " maga " also match "MAGA!", "(MAGA)", "MAGA's" or a trailing "MAGA".
+        // Only plain word keywords (letters/digits/spaces) are matched against it; hosts,
+        // URLs and keywords with their own punctuation (" gop:", " sen. ", "cmp.lk") are
+        // matched against the raw text only, so they are unaffected.
+        let punctuationAsSpace = String(lowercased.map { Self.isPunctuation($0) ? " " : $0 })
+        let normalized = punctuationAsSpace + " "
+
+        // A combined group matches when every term is present (space-wrapped terms get the same
+        // word-boundary treatment as keywords). The group's first term may have whitelist phrases,
+        // which veto the whole group.
+        for group in combinedTerms where group.allSatisfy({ matches($0.lowercased(), lowercased, normalized) }) {
+            if let first = group.first,
+               let whitelistedPhrases = whitelistContexts[first.lowercased()],
+               whitelistedPhrases.contains(where: { lowercased.contains($0.lowercased()) }) {
+                continue
+            }
             return true
         }
 
-        for keyword in keywords where lowercased.contains(keyword.lowercased()) {
+        for keyword in keywords {
+            let lowerKeyword = keyword.lowercased()
+            let rawMatch = lowercased.contains(lowerKeyword)
+            let spaceWrapped = lowerKeyword.hasPrefix(" ") || lowerKeyword.hasSuffix(" ")
+            let normalizedMatch = !rawMatch && spaceWrapped
+                && !lowerKeyword.contains(where: Self.isPunctuation)
+                && normalized.contains(lowerKeyword)
+            guard rawMatch || normalizedMatch else { continue }
             if let whitelistedPhrases = whitelistContexts[keyword.lowercased()],
                whitelistedPhrases.contains(where: { lowercased.contains($0.lowercased()) }) {
                 continue
@@ -175,5 +254,18 @@ struct KeywordFilterEngine {
         }
 
         return false
+    }
+
+    private func matches(_ term: String, _ raw: String, _ normalized: String) -> Bool {
+        if raw.contains(term) { return true }
+        let spaceWrapped = term.hasPrefix(" ") || term.hasSuffix(" ")
+        return spaceWrapped && !term.contains(where: Self.isPunctuation) && normalized.contains(term)
+    }
+
+    /// Punctuation and symbols (including apostrophes) that separate words in prose.
+    private static func isPunctuation(_ c: Character) -> Bool {
+        c.unicodeScalars.allSatisfy {
+            CharacterSet.punctuationCharacters.contains($0) || CharacterSet.symbols.contains($0)
+        }
     }
 }

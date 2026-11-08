@@ -268,7 +268,7 @@ struct ProUpgradeView: View {
 
             comparisonRow(feature: "Keyword filtering", free: true, pro: true)
             comparisonRow(feature: "AI-powered filtering", free: false, pro: true)
-            comparisonTextRow(feature: "Accuracy", freeText: "Basic", proText: "99%+")
+            comparisonTextRow(feature: "Accuracy", freeText: "Basic", proText: "96.7%")
         }
         .padding(16)
         .background(Color.white.opacity(0.1))
