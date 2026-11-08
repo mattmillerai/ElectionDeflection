@@ -753,23 +753,23 @@ final class SharedDataManagerTests: XCTestCase {
 
     // --- Task 1: Data Parity Verification ---
 
-    func testExactKeywordCountIs491() {
-        XCTAssertEqual(DefaultFilterData.keywords.count, 491,
-                       "keyword list (2026 triage additions) must contain exactly 491 keywords")
+    func testExactKeywordCountIs503() {
+        XCTAssertEqual(DefaultFilterData.keywords.count, 503,
+                       "keyword list (2026 triage rounds 1-3) must contain exactly 503 keywords")
     }
 
-    func testExactWhitelistContextKeysIs6WithTotal14Phrases() {
+    func testExactWhitelistContextKeysIs13WithTotal73Phrases() {
         let contexts = DefaultFilterData.whitelistContexts
-        XCTAssertEqual(contexts.count, 6,
-                       "v1.0 whitelist contexts must have exactly 6 keyword groups")
+        XCTAssertEqual(contexts.count, 13,
+                       "whitelist contexts must have exactly 13 keyword groups")
         let totalPhrases = contexts.values.reduce(0) { $0 + $1.count }
-        XCTAssertEqual(totalPhrases, 14,
-                       "v1.0 whitelist contexts must have exactly 14 total phrases across all groups")
+        XCTAssertEqual(totalPhrases, 73,
+                       "whitelist contexts must have exactly 73 total phrases")
     }
 
-    func testExactCombinedTermsCountIs12() {
-        XCTAssertEqual(DefaultFilterData.combinedTerms.count, 12,
-                       "v1.0 combined terms must have exactly 12 groups")
+    func testExactCombinedTermsCountIs120() {
+        XCTAssertEqual(DefaultFilterData.combinedTerms.count, 120,
+                       "combined terms must have exactly 120 groups")
     }
 
     func testSpecificV1KeywordsArePresent() {
@@ -969,12 +969,12 @@ final class SharedDataManagerTests: XCTestCase {
     func testDataSeedingWorksWithoutProTier() {
         sut.isProTier = false
         sut.seedDefaultFilterDataIfNeeded()
-        XCTAssertEqual(sut.keywordList.count, 491,
-                       "Data seeding must work for Free tier (491 keywords)")
-        XCTAssertEqual(sut.whitelistContexts.count, 6,
-                       "Data seeding must populate all 6 whitelist context groups for Free tier")
-        XCTAssertEqual(sut.combinedTerms.count, 12,
-                       "Data seeding must populate all 12 combined term groups for Free tier")
+        XCTAssertEqual(sut.keywordList.count, 503,
+                       "Data seeding must work for Free tier (503 keywords)")
+        XCTAssertEqual(sut.whitelistContexts.count, 13,
+                       "Data seeding must populate all 13 whitelist context groups for Free tier")
+        XCTAssertEqual(sut.combinedTerms.count, 120,
+                       "Data seeding must populate all 120 combined term groups for Free tier")
     }
 }
 

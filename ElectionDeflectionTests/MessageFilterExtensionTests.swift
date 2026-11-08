@@ -406,6 +406,48 @@ final class MessageFilterExtensionTests: XCTestCase {
                        "Only one half of a combined-terms pair should not match")
     }
 
+    // MARK: - Space-wrapped keywords next to punctuation
+
+    func testSpaceWrappedKeywordMatchesAdjacentPunctuation() {
+        let engine = KeywordFilterEngine(keywords: [" maga "], whitelistContexts: [:], combinedTerms: [])
+        let bodies = [
+            "MAGA!", "Go MAGA.", "Is it MAGA?", "Yes, MAGA, always", "Team (MAGA) rally",
+            "He said \"MAGA\" twice", "MAGA's big night", "we love maga", "MAGA", "#MAGA now", "MAGA\u{2019}s plan"
+        ]
+        for body in bodies {
+            XCTAssertTrue(engine.isPolitical(body), "\"\(body)\" should match \" maga \"")
+        }
+    }
+
+    func testSpaceWrappedKeywordDoesNotMatchInsideWords() {
+        let engine = KeywordFilterEngine(keywords: [" maga "], whitelistContexts: [:], combinedTerms: [])
+        for body in ["Use your imagination!", "New magazine out today.", "Magazines, books", "Dr. Magahey called", "ima-ga"] {
+            XCTAssertFalse(engine.isPolitical(body), "\"\(body)\" must not match \" maga \"")
+        }
+        let defaults = KeywordFilterEngine(
+            keywords: DefaultFilterData.keywords,
+            whitelistContexts: DefaultFilterData.whitelistContexts,
+            combinedTerms: DefaultFilterData.combinedTerms
+        )
+        XCTAssertFalse(defaults.isPolitical("Use your imagination! The magazine is here."))
+        XCTAssertTrue(defaults.isPolitical("Hello (MAGA)"))
+    }
+
+    func testPunctuationNormalizationKeepsHostsAndPunctuatedKeywordsWorking() {
+        let engine = KeywordFilterEngine(
+            keywords: ["cmp.lk", "win4tx.org", " gop:", " sen. ", "left-wing", " gop's "],
+            whitelistContexts: [:],
+            combinedTerms: []
+        )
+        XCTAssertTrue(engine.isPolitical("Visit https://cmp.lk/abc today"))
+        XCTAssertTrue(engine.isPolitical("see win4tx.org/donate"))
+        XCTAssertTrue(engine.isPolitical("GOP: act now"))
+        XCTAssertTrue(engine.isPolitical("Message from Sen. Smith"))
+        XCTAssertTrue(engine.isPolitical("a left-wing group"))
+        XCTAssertTrue(engine.isPolitical("the GOP's plan"))
+        XCTAssertFalse(engine.isPolitical("cmp lk and win4tx org"), "Dots in host keywords must not be treated as spaces")
+    }
+
     // MARK: - 2026 Submission Triage Keywords (Story 13.1)
 
     private static let triageOptOutTerms = ["stop2end", "end2end", "stoptoend"]
@@ -546,5 +588,187 @@ final class MessageFilterExtensionTests: XCTestCase {
 
         XCTAssertEqual(dataManager.keywordList, DefaultFilterData.keywords)
         XCTAssertEqual(dataManager.filterDataFingerprint, DefaultFilterData.fingerprint)
+    }
+
+    // MARK: - Triage Round 2: Extra Hosts and Devotional Contexts (Story 13.2)
+
+    private static let roundTwoHosts = [
+        "sherrodbrown.com", "jamestalarico.com", "alaskans4mary.org", "bolddems.com", "readyforthefight.com",
+        "jnk4us.co", "2026give.com", "prochoicedems.org", "r4fp.org", "no-kings.io", "xavier4ca.com",
+        "thehousepac.com", "vter.io"
+    ]
+
+    private static let devotionalKeywords = ["stop=end", "us-26.co", "usa26.io"]
+
+    private func defaultEngine() -> KeywordFilterEngine {
+        KeywordFilterEngine(
+            keywords: DefaultFilterData.keywords,
+            whitelistContexts: DefaultFilterData.whitelistContexts,
+            combinedTerms: DefaultFilterData.combinedTerms
+        )
+    }
+
+    func testRoundTwoHostsCatchBareAndSchemedLinks() {
+        let hostOnly = KeywordFilterEngine(keywords: Self.roundTwoHosts, whitelistContexts: [:], combinedTerms: [])
+        for host in Self.roundTwoHosts {
+            XCTAssertTrue(DefaultFilterData.keywords.contains(host), "\"\(host)\" should be a default keyword")
+            for body in [
+                "Quick question for you, see here: \(host)/a1b2c3",
+                "Quick question for you, see here: https://\(host)/a1b2c3",
+                "Quick question for you, see here: go.\(host)/a1b2c3"
+            ] {
+                XCTAssertTrue(defaultEngine().isPolitical(body), "\"\(host)\" should flag: \(body)")
+                XCTAssertTrue(hostOnly.isPolitical(body), "Match must come from \"\(host)\" itself: \(body)")
+            }
+        }
+    }
+
+    func testRoundTwoHostsDoNotFireOnTrainingDataNotPolitical() throws {
+        let url = projectRoot.appendingPathComponent("TrainingData/training_data_v1.json")
+        let rows = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [[String: String]]
+        let notPolitical = try XCTUnwrap(rows).filter { $0["label"] == "not_political" }.compactMap { $0["text"] }
+        let hostOnly = KeywordFilterEngine(keywords: Self.roundTwoHosts, whitelistContexts: [:], combinedTerms: [])
+        let hits = notPolitical.filter { hostOnly.isPolitical($0) }
+        XCTAssertTrue(hits.isEmpty, "Round 2 hosts must not fire on training not_political rows:\n\(hits.joined(separator: "\n"))")
+    }
+
+    func testDefaultListFlagsNoTrainingDataNotPoliticalRows() throws {
+        // The two training rows flagged before Story 13.2 were devotional appeals; the whole default list
+        // (not just the new terms) now flags none of the not_political rows.
+        let url = projectRoot.appendingPathComponent("TrainingData/training_data_v1.json")
+        let rows = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [[String: String]]
+        let notPolitical = try XCTUnwrap(rows).filter { $0["label"] == "not_political" }.compactMap { $0["text"] }
+        let hits = notPolitical.filter { defaultEngine().isPolitical($0) }
+        XCTAssertTrue(hits.isEmpty, "Default list must not flag training not_political rows:\n\(hits.joined(separator: "\n"))")
+    }
+
+    func testDevotionalAppealsFromPoliticalVendorsAreNotFlagged() {
+        // Short paraphrases of the devotional/charity items labeled not_political (no verbatim text).
+        let devotional = [
+            "Help share the gospel with World Cup fans from closed countries. Give: red-win.org/x1 stop=end",
+            "Request a free prayer bookmark for military members: ptvictory.co/x3 stop=end",
+            "$50 sends gospel booklets to World Cup fans. Give: us-26.co/x4 stop=end",
+            "Claim a free DVD set on ancient Christianity: usa26.io/x5 stop=end",
+            "Get ready for Easter with 12 days of scripture and prayer: prebrn.us/x7 STOP=end",
+            "I've been praying for you. I believe God wants me to share this: usa26.io/x8"
+        ]
+        for body in devotional {
+            XCTAssertFalse(defaultEngine().isPolitical(body), "Devotional appeal must not be flagged: \(body)")
+        }
+    }
+
+    func testDevotionalContextsOnlyBypassTheirOwnKeywords() {
+        let engine = defaultEngine()
+        // Without a devotional phrase, the vendor keywords still flag.
+        XCTAssertTrue(engine.isPolitical("Last chance to claim your member card: usa26.io/x9 stop=end"))
+        XCTAssertTrue(engine.isPolitical("Your gift is matched 5x tonight: us-26.co/x10"))
+        // A devotional phrase does not hide other political keywords.
+        XCTAssertTrue(engine.isPolitical("Join our prayer call for Trump tonight: us-26.co/x11 stop=end"))
+        XCTAssertTrue(engine.isPolitical("Gospel singers back the GOP ticket! crushmaga.io/x12 stop=end"))
+        // The devotional whitelist is scoped to exactly these three keywords.
+        for keyword in Self.devotionalKeywords {
+            XCTAssertNotNil(DefaultFilterData.whitelistContexts[keyword], "\"\(keyword)\" should have devotional contexts")
+        }
+    }
+
+    func testFingerprintChangesWithRoundTwo() {
+        var releasedWhitelist = DefaultFilterData.whitelistContexts
+        Self.devotionalKeywords.forEach { releasedWhitelist.removeValue(forKey: $0) }
+        let released = DefaultFilterData.fingerprint(
+            keywords: DefaultFilterData.keywords.filter { !Self.roundTwoHosts.contains($0) },
+            whitelistContexts: releasedWhitelist,
+            combinedTerms: DefaultFilterData.combinedTerms
+        )
+        XCTAssertNotEqual(released, DefaultFilterData.fingerprint,
+                          "Round 2 changes must change the fingerprint so 2.1.5 users' seeded lists refresh")
+    }
+
+    // MARK: - Round 3 Keyword Gaps (2.1.6)
+
+    func testRoundThreeKeywordGapsAreFlagged() {
+        let engine = defaultEngine()
+        let political = [
+            "MAGA patriots: your gift is needed tonight. Reply STOP to end",
+            "Chip in now: your gift gets a 5X MATCH until midnight",
+            "Donate today and get a 7x match on your contribution",
+            "Give before midnight for a 6x match",
+            "Claim your tariff rebate, Trump says. Vote now",
+            "Your stimulus check is waiting, courtesy of the Democrats",
+            "Midterm deadline tonight: the GOP needs you to vote",
+            "Midterm primary polls close soon"
+        ]
+        for body in political {
+            XCTAssertTrue(engine.isPolitical(body), "Should be flagged: \(body)")
+        }
+    }
+
+    func testRoundThreeKeywordsDoNotFlagOrdinaryTexts() {
+        let engine = defaultEngine()
+        let benign = [
+            "Your midterm exam is moved to Room 204",
+            "Midterm grades are posted on the portal",
+            "New issue of Magazine arrived at the shop",
+            "Lunch at noon?",
+            "Your stimulus check is waiting at the bank",
+            "Claim your tariff rebate today",
+            "Midterm deadline tonight: can we count on you?",
+            "Embrace the space, our package arrived",
+            "Your gift gets a 5X MATCH until midnight",
+            "Charity drive: 6x match for the food bank, give today",
+            "St Jude 5x match: donate to the foundation",
+            "Our church ministry has a 7x match, please give",
+            "Nonprofit shelter appeal: 5x match, chip in"
+        ]
+        for body in benign {
+            XCTAssertFalse(engine.isPolitical(body), "Should not be flagged: \(body)")
+        }
+    }
+
+    func testRoundThreePhrasesAreNotStandaloneKeywords() {
+        for term in ["5x match", "6x match", "7x match", "tariff rebate", "stimulus check", "midterm"] {
+            XCTAssertFalse(DefaultFilterData.keywords.contains(term), "\(term) must be combined-only")
+        }
+    }
+
+    func testMidtermWhitelistStillVetoesElectionGatedGroup() {
+        XCTAssertFalse(defaultEngine().isPolitical("Midterm exam polls the class on the primary topic"))
+    }
+
+    // MARK: - Campaign gating (2.1.6)
+
+    func testCampaignFlagsOnlyWithElectionContext() {
+        let engine = defaultEngine()
+        let political = [
+            "Trump campaign needs you tonight",
+            "Our campaign for governor is counting on you",
+            "Campaign update: the Senate race is tightening",
+            "Join the campaign, vote early",
+            "Democrats campaign push: polls close Tuesday",
+            "Your gift gets a 5x match on the campaign. Donate now"
+        ]
+        for body in political {
+            XCTAssertTrue(engine.isPolitical(body), "Should be flagged: \(body)")
+        }
+    }
+
+    func testCampaignAloneDoesNotFlagCharityOrMarketingTexts() {
+        let engine = defaultEngine()
+        let benign = [
+            "Our fall food drive campaign for the food bank",
+            "Our fall food drive campaign for the food bank starts Monday",
+            "Email campaign launch is scheduled for Friday",
+            "Our Kickstarter campaign is live",
+            "The ad campaign shoots next week",
+            "Marketing campaign review at 3pm"
+        ]
+        for body in benign {
+            XCTAssertFalse(engine.isPolitical(body), "Should not be flagged: \(body)")
+        }
+    }
+
+    func testCampaignIsNotAStandaloneKeywordButStaysADonationWord() {
+        XCTAssertFalse(DefaultFilterData.keywords.contains("campaign"))
+        XCTAssertTrue(DefaultFilterData.combinedTerms.contains(["5x match", "campaign"]))
+        XCTAssertFalse(DefaultFilterData.combinedTerms.contains(["campaign", "campaign"]))
     }
 }

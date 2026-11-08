@@ -282,6 +282,16 @@ struct SettingsView: View {
                                     .padding(16)
                                 }
                                 .accessibilityLabel("Open developer website")
+
+                                Divider()
+                                    .background(Color.white.opacity(0.15))
+
+                                Text("Filtering stopped after an iOS or app update? Go to Settings > Apps > Messages > Unknown & Spam, turn ElectionDeflection off under Text Message Filter, then turn it back on.")
+                                    .font(.footnote)
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .padding(16)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .accessibilityLabel("Troubleshooting. If filtering stops after an iOS or app update, go to Settings, Apps, Messages, Unknown and Spam, turn ElectionDeflection off under Text Message Filter, then turn it back on.")
                             }
                         }
 
