@@ -114,6 +114,167 @@ final class StoreKitServiceTests: XCTestCase {
         XCTAssertTrue(service.productIDs.contains(SharedConstants.proLifetimeProductID))
     }
 
+    // MARK: - Family Annual Tier
+
+    func testFamilyProductIDInProductIDSet() {
+        let service = makeService()
+        XCTAssertEqual(SharedConstants.proFamilyAnnualProductID, "com.millermedia.ElectionDeflection.pro.family.annual")
+        XCTAssertTrue(service.productIDs.contains(SharedConstants.proFamilyAnnualProductID))
+        XCTAssertEqual(service.productIDs.count, 3)
+    }
+
+    func testFamilyEntitlementUnlocksPro() async {
+        let service = makeService()
+        let renewalDate = Date().addingTimeInterval(365 * 24 * 60 * 60)
+        mockChecker.detailToReturn = EntitlementDetail(
+            productID: SharedConstants.proFamilyAnnualProductID,
+            expirationDate: renewalDate
+        )
+
+        await service.checkEntitlements()
+
+        XCTAssertTrue(service.isProTier)
+        XCTAssertTrue(SharedDataManager.shared.isProTier)
+        XCTAssertEqual(service.subscriptionStatus, .familyAnnual(renewalDate: renewalDate))
+        XCTAssertEqual(service.subscriptionStatus.displayLabel, "Pro — Family Annual")
+        XCTAssertTrue(service.subscriptionStatus.isSubscription)
+    }
+
+    func testFamilyExpiryRelocksPro() async {
+        let service = makeService()
+        mockChecker.detailToReturn = EntitlementDetail(
+            productID: SharedConstants.proFamilyAnnualProductID,
+            expirationDate: Date().addingTimeInterval(86_400)
+        )
+        await service.checkEntitlements()
+        XCTAssertTrue(service.isProTier)
+
+        // Expired or revoked (e.g. family organizer stopped sharing): checker reports nothing.
+        mockChecker.detailToReturn = nil
+        await service.checkEntitlements()
+
+        XCTAssertFalse(service.isProTier)
+        XCTAssertFalse(SharedDataManager.shared.isProTier)
+        XCTAssertEqual(service.subscriptionStatus, .none)
+    }
+
+    func testLifetimeStillWinsAndIndividualAnnualUnchanged() async {
+        let service = makeService()
+        let renewalDate = Date().addingTimeInterval(86_400)
+        mockChecker.detailToReturn = EntitlementDetail(
+            productID: SharedConstants.proAnnualProductID,
+            expirationDate: renewalDate
+        )
+        await service.checkEntitlements()
+        XCTAssertEqual(service.subscriptionStatus, .annual(renewalDate: renewalDate))
+        XCTAssertTrue(service.subscriptionStatus.isSubscription)
+
+        mockChecker.detailToReturn = EntitlementDetail(
+            productID: SharedConstants.proLifetimeProductID,
+            expirationDate: nil
+        )
+        await service.checkEntitlements()
+        XCTAssertEqual(service.subscriptionStatus, .lifetime)
+        XCTAssertFalse(service.subscriptionStatus.isSubscription)
+    }
+
+    func testFamilyPurchaseBlockedWhenAlreadyPro() async {
+        let service = makeService()
+        mockChecker.detailToReturn = EntitlementDetail(
+            productID: SharedConstants.proFamilyAnnualProductID,
+            expirationDate: Date().addingTimeInterval(86_400)
+        )
+        await service.checkEntitlements()
+
+        let outcome = await service.purchase(productID: SharedConstants.proFamilyAnnualProductID)
+        XCTAssertEqual(outcome, .alreadyOwned)
+    }
+
+    // MARK: - Individual -> Family Upgrade
+
+    private func setEntitlement(_ productID: String, expires: Date? = Date().addingTimeInterval(86_400)) async -> StoreKitService {
+        let service = makeService()
+        mockChecker.detailToReturn = EntitlementDetail(productID: productID, expirationDate: expires)
+        await service.checkEntitlements()
+        return service
+    }
+
+    func testEligibilityForIndividualAnnualSubscriber() async {
+        let service = await setEntitlement(SharedConstants.proAnnualProductID)
+        XCTAssertEqual(service.currentPlanProductID, SharedConstants.proAnnualProductID)
+        XCTAssertEqual(service.eligibility(for: SharedConstants.proAnnualProductID), .currentPlan)
+        XCTAssertEqual(service.eligibility(for: SharedConstants.proFamilyAnnualProductID), .upgrade)
+    }
+
+    func testEligibilityForFamilySubscriber() async {
+        let service = await setEntitlement(SharedConstants.proFamilyAnnualProductID)
+        XCTAssertEqual(service.eligibility(for: SharedConstants.proFamilyAnnualProductID), .currentPlan)
+        XCTAssertEqual(service.eligibility(for: SharedConstants.proAnnualProductID), .blocked(.downgrade))
+    }
+
+    func testEligibilityForFreeUser() async {
+        let service = await setEntitlement(SharedConstants.proAnnualProductID)
+        mockChecker.detailToReturn = nil
+        await service.checkEntitlements()
+        XCTAssertNil(service.currentPlanProductID)
+        XCTAssertEqual(service.eligibility(for: SharedConstants.proFamilyAnnualProductID), .allowed)
+    }
+
+    func testPurchaseWithActiveIndividualAttemptsFamilyPurchase() async {
+        let service = await setEntitlement(SharedConstants.proAnnualProductID)
+        // Product objects cannot be constructed without a StoreKit session, so an unknown product
+        // yields .failed — but crucially not .alreadyOwned, i.e. eligibility let the upgrade through.
+        let outcome = await service.purchase(productID: SharedConstants.proFamilyAnnualProductID)
+        XCTAssertNotEqual(outcome, .alreadyOwned)
+        XCTAssertEqual(outcome, .failed)
+    }
+
+    func testPurchaseIndividualWhileFamilyIsBlocked() async {
+        let service = await setEntitlement(SharedConstants.proFamilyAnnualProductID)
+        let outcome = await service.purchase(productID: SharedConstants.proAnnualProductID)
+        XCTAssertEqual(outcome, .alreadyOwned)
+        XCTAssertFalse(mockPurchaser.purchaseCalled)
+    }
+
+    func testPurchaseCurrentIndividualPlanIsBlocked() async {
+        let service = await setEntitlement(SharedConstants.proAnnualProductID)
+        let outcome = await service.purchase(productID: SharedConstants.proAnnualProductID)
+        XCTAssertEqual(outcome, .alreadyOwned)
+        XCTAssertFalse(mockPurchaser.purchaseCalled)
+    }
+
+    func testCachedDisplayDataForFamilyProduct() {
+        testDefaults.set([
+            SharedConstants.proFamilyAnnualProductID: [
+                "displayName": "Pro Family Annual",
+                "description": "Share with up to 5 family members",
+                "displayPrice": "$19.99"
+            ]
+        ], forKey: StoreKitService.cacheKey)
+        let data = makeService().cachedDisplayData(for: SharedConstants.proFamilyAnnualProductID)
+        XCTAssertEqual(data?.displayPrice, "$19.99")
+    }
+
+    func testStoreKitConfigListsFamilyProductInSameGroup() throws {
+        // Dev-only .storekit file is not bundled into the test host; read it from the source tree.
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("ElectionDeflection/ElectionDeflection.storekit")
+        let data = try Data(contentsOf: url)
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let groups = try XCTUnwrap(json["subscriptionGroups"] as? [[String: Any]])
+        let subs = try XCTUnwrap(groups.first?["subscriptions"] as? [[String: Any]])
+        let family = try XCTUnwrap(subs.first { $0["productID"] as? String == SharedConstants.proFamilyAnnualProductID })
+        let individual = try XCTUnwrap(subs.first { $0["productID"] as? String == SharedConstants.proAnnualProductID })
+        XCTAssertEqual(family["subscriptionGroupID"] as? String, SharedConstants.subscriptionGroupID)
+        XCTAssertEqual(family["familyShareable"] as? Bool, true)
+        XCTAssertEqual(family["displayPrice"] as? String, "19.99")
+        XCTAssertEqual(family["recurringSubscriptionPeriod"] as? String, "P1Y")
+        XCTAssertEqual(individual["familyShareable"] as? Bool, false)
+        XCTAssertEqual(individual["displayPrice"] as? String, "9.99")
+        XCTAssertLessThan(try XCTUnwrap(family["groupNumber"] as? Int), try XCTUnwrap(individual["groupNumber"] as? Int))
+    }
+
     // MARK: - Load Products
 
     func testLoadProductsEmpty() async {

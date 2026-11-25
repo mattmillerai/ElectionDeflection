@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var iconChangeError = false
     @State private var showingTextSubmission = false
     @State private var showingAuditLog = false
+    @State private var showingMyFilters = false
 
     init() {
         _isFilterEnabled = State(initialValue: SharedDataManager.shared.isFilterEnabled)
@@ -143,6 +144,39 @@ struct SettingsView: View {
                                     .padding(16)
                                 }
                                 .accessibilityLabel("Test the Filter. See how the filter classifies a message.")
+
+                                Divider()
+                                    .background(Color.white.opacity(0.15))
+
+                                // Pro custom filters — visible to everyone, locked for free users
+                                Button {
+                                    if storeService.isProTier || !SharedDataManager.shared.userFilterRules.isEmpty {
+                                        showingMyFilters = true
+                                    } else {
+                                        showingProUpgrade = true
+                                    }
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "line.3.horizontal.decrease.circle")
+                                            .foregroundColor(.brandGold)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("My Filters")
+                                                .foregroundColor(.white)
+                                            Text(storeService.isProTier
+                                                 ? "Block or allow your own words and patterns"
+                                                 : "Pro: block or allow your own words and patterns")
+                                                .font(.caption)
+                                                .foregroundColor(.white.opacity(0.5))
+                                        }
+                                        Spacer()
+                                        Image(systemName: storeService.isProTier ? "chevron.right" : "lock.fill")
+                                            .foregroundColor(.white.opacity(0.4))
+                                    }
+                                    .padding(16)
+                                }
+                                .accessibilityLabel(storeService.isProTier
+                                                    ? "My Filters. Block or allow your own words and patterns."
+                                                    : "My Filters. Locked. Requires Pro.")
                             }
                         }
 
@@ -161,7 +195,7 @@ struct SettingsView: View {
                                     .accessibilityElement(children: .combine)
                                     .accessibilityLabel("Pro tier active. \(storeService.subscriptionStatus.displayLabel)")
 
-                                    if case .annual = storeService.subscriptionStatus {
+                                    if storeService.subscriptionStatus.isSubscription {
                                         Divider()
                                             .background(Color.white.opacity(0.15))
 
@@ -330,6 +364,10 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showingAuditLog) {
             AuditLogView()
+        }
+        .sheet(isPresented: $showingMyFilters) {
+            MyFiltersView()
+                .modifier(OpaqueSheetBackground(isProTier: storeService.isProTier))
         }
         .manageSubscriptionsSheet(isPresented: $showManageSubscription)
         .alert("Unable to Change Icon", isPresented: $iconChangeError) {

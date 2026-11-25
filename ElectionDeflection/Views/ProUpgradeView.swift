@@ -13,6 +13,9 @@ struct ProUpgradeView: View {
     @State private var isRestore = false
     @State private var successAnimating = false
 
+    /// Family annual card copy: Pro for the whole household via Family Sharing.
+    private static let familySubtitle = "Share with up to 5 family members"
+
     var body: some View {
         ZStack {
             (storeService.isProTier ? Color.proNavy : Color.brandNavy)
@@ -21,6 +24,7 @@ struct ProUpgradeView: View {
             if showingSuccess {
                 successScreen
             } else {
+            ScrollView {
             VStack(spacing: 16) {
                     // Close button
                     HStack {
@@ -64,12 +68,21 @@ struct ProUpgradeView: View {
                             .tint(.white)
                             .padding(20)
                     } else if !storeService.products.isEmpty {
-                        if let annual = storeService.annualProduct {
+                        if let annual = storeService.annualProduct,
+                           storeService.eligibility(for: annual.id) != .blocked(.downgrade) {
                             pricingCard(
                                 title: "Annual",
                                 subtitle: "Renews yearly",
                                 price: annual.displayPrice + "/year",
                                 product: annual
+                            )
+                        }
+                        if let family = storeService.familyAnnualProduct {
+                            pricingCard(
+                                title: "Family Annual",
+                                subtitle: Self.familySubtitle,
+                                price: family.displayPrice + "/year",
+                                product: family
                             )
                         }
                         if let lifetime = storeService.lifetimeProduct {
@@ -138,6 +151,12 @@ struct ProUpgradeView: View {
 
                     // Subscription terms + legal links
                     VStack(spacing: 6) {
+                        if let family = storeService.familyAnnualProduct {
+                            Text("ElectionDeflection Pro Family Annual Subscription: \(family.displayPrice)/year. Can be shared with up to 5 family members through Family Sharing. Subscription automatically renews unless canceled at least 24 hours before the end of the current period. Your Apple ID account will be charged for renewal within 24 hours prior to the end of the current period. You can manage and cancel your subscriptions in your App Store account settings.")
+                                .font(.caption2)
+                                .foregroundColor(.white.opacity(0.45))
+                                .multilineTextAlignment(.center)
+                        }
                         if let annual = storeService.annualProduct {
                             Text("ElectionDeflection Pro Annual Subscription: \(annual.displayPrice)/year. Subscription automatically renews unless canceled at least 24 hours before the end of the current period. Your Apple ID account will be charged for renewal within 24 hours prior to the end of the current period. You can manage and cancel your subscriptions in your App Store account settings.")
                                 .font(.caption2)
@@ -166,6 +185,8 @@ struct ProUpgradeView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 16)
+            }
+            .readableWidth()
             }
             } // else (not showingSuccess)
         }
@@ -320,23 +341,27 @@ struct ProUpgradeView: View {
     // MARK: - Pricing Card
 
     private func pricingCard(title: String, subtitle: String, price: String, product: Product) -> some View {
-        Button {
+        let eligibility = storeService.eligibility(for: product.id)
+        let isCurrentPlan = eligibility == .currentPlan && product.id != SharedConstants.proLifetimeProductID
+        let isUpgrade = eligibility == .upgrade
+        let displayTitle = isUpgrade ? "Upgrade to \(title.replacingOccurrences(of: " Annual", with: ""))" : title
+        let displaySubtitle = isCurrentPlan ? "Current plan"
+            : (isUpgrade ? "Switch now — Apple prorates your remaining time" : subtitle)
+        return Button {
             Task { await purchase(product) }
         } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.headline)
-                        .foregroundColor(.white)
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.7))
+            // Side by side normally; stacks when the text no longer fits (AX5 / narrow widths).
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    pricingCardText(title: displayTitle, subtitle: displaySubtitle)
+                    Spacer()
+                    pricingCardPrice(price)
                 }
-                Spacer()
-                Text(price)
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
+                VStack(alignment: .leading, spacing: 8) {
+                    pricingCardText(title: displayTitle, subtitle: displaySubtitle)
+                    pricingCardPrice(price)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(16)
             .background(
@@ -347,10 +372,32 @@ struct ProUpgradeView: View {
                 )
             )
             .cornerRadius(16)
+            .opacity(isCurrentPlan ? 0.5 : 1)
             .padding(.horizontal, 20)
         }
-        .disabled(isPurchasing)
-        .accessibilityLabel("Purchase \(title) for \(price)")
+        .disabled(isPurchasing || isCurrentPlan)
+        .accessibilityLabel(isCurrentPlan ? "\(title), current plan"
+            : (isUpgrade ? "\(displayTitle) for \(price), switch is immediate and prorated by Apple"
+               : "Purchase \(title) for \(price)"))
+    }
+
+    private func pricingCardText(title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.headline)
+                .foregroundColor(.white)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundColor(.white.opacity(0.7))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func pricingCardPrice(_ price: String) -> some View {
+        Text(price)
+            .font(.title3)
+            .fontWeight(.bold)
+            .foregroundColor(.white)
     }
 
     // MARK: - Cached Pricing Fallback
@@ -362,6 +409,9 @@ struct ProUpgradeView: View {
                 // Show cached prices but disable purchasing (need live Product objects)
                 VStack(spacing: 16) {
                     cachedPriceRow(title: "Annual", price: annualCache.displayPrice + "/year")
+                    if let familyCache = storeService.cachedDisplayData(for: SharedConstants.proFamilyAnnualProductID) {
+                        cachedPriceRow(title: "Family Annual", price: familyCache.displayPrice + "/year")
+                    }
                     cachedPriceRow(title: "Lifetime", price: lifetimeCache.displayPrice)
 
                     Text("Pricing shown from cache. Tap retry to load latest prices.")

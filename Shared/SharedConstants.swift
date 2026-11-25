@@ -32,6 +32,9 @@ enum SharedConstants {
     /// detect when the bundled filter data (e.g. a new keyword) has changed since and
     /// needs to be reseeded, instead of only reseeding when keywordList is empty.
     static let filterDataFingerprintKey = "filterDataFingerprint"
+    /// Pro custom filter rules (issue #5): a versioned JSON container, deliberately separate
+    /// from the built-in keyword keys so seedDefaultFilterDataIfNeeded() never reads/writes it.
+    static let userFilterRulesKey = "userFilterRulesV1"
 
     // MARK: - Upgrade Prompt
 
@@ -54,6 +57,7 @@ enum SharedConstants {
     // MARK: - IAP Product IDs
 
     static let proAnnualProductID = "com.millermedia.ElectionDeflection.pro.annual"
+    static let proFamilyAnnualProductID = "com.millermedia.ElectionDeflection.pro.family.annual"
     static let proLifetimeProductID = "com.millermedia.ElectionDeflection.pro.lifetime"
     static let subscriptionGroupID = "ElectionDeflectionPro"
 

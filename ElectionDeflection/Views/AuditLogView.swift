@@ -79,6 +79,8 @@ struct AuditResult {
     let mlMilliseconds: Double?
     let keywordPolitical: Bool
     let modelAvailable: Bool
+    /// Pro custom-rule override (nil when no rule matched or the user isn't Pro).
+    var userRuleDecision: UserRuleEngine.Decision? = nil
 }
 
 /// Runs the SAME classification the MessageFilterExtension runs: the identical bundled
@@ -91,6 +93,7 @@ final class FilterAuditClassifier {
 
     private var model: MLModel?
     private let keywordEngine: KeywordFilterEngine
+    private var userRuleEngine = UserRuleEngine(rules: [])
     private(set) var modelAvailable = false
 
     init() {
@@ -117,13 +120,17 @@ final class FilterAuditClassifier {
     }
 
     func classify(_ text: String) -> AuditResult {
+        // Rules can change while the app is running (My Filters), so rebuild per audit —
+        // cheap in the app; the extension compiles once per process instead.
+        userRuleEngine = UserRuleEngine(rules: SharedDataManager.shared.userFilterRules)
         let (label, confidence, ms) = classifyML(text)
         return AuditResult(
             mlLabel: label,
             mlConfidence: confidence,
             mlMilliseconds: ms,
             keywordPolitical: keywordPolitical(text),
-            modelAvailable: modelAvailable
+            modelAvailable: modelAvailable,
+            userRuleDecision: userRuleEngine.evaluate(text, isProTier: SharedDataManager.shared.isProTier)
         )
     }
 
@@ -169,6 +176,8 @@ struct AuditLogView: View {
     @State private var input = ""
     @State private var lastResult: AuditResult?
     @State private var showDetails = false
+    @State private var showingAddFilter = false
+    @StateObject private var myFilters = MyFiltersViewModel()
     @State private var showTester = true
     @State private var resultToken = 0
     @State private var contentWidth: CGFloat = 0
@@ -211,6 +220,13 @@ struct AuditLogView: View {
                     }
                 )
             }
+        }
+        .sheet(isPresented: $showingAddFilter) {
+            UserFilterRuleEditor(
+                viewModel: myFilters,
+                initialPattern: MyFiltersViewModel.suggestedPattern(from: input)
+            )
+            .modifier(OpaqueSheetBackground(isProTier: storeService.isProTier))
         }
     }
 
@@ -454,7 +470,7 @@ struct AuditLogView: View {
                 }
 
                 // Confidence bar — only when the AI model actually made the call
-                if activeMethodIsML, let c = result.mlConfidence {
+                if activeMethodIsML, result.userRuleDecision == nil, let c = result.mlConfidence {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Text("Confidence")
@@ -469,6 +485,18 @@ struct AuditLogView: View {
                             .progressViewStyle(.linear)
                             .tint(.brandGold)
                     }
+                }
+
+                // Pro: turn the tested message into a custom rule
+                if storeService.isProTier {
+                    Button {
+                        showingAddFilter = true
+                    } label: {
+                        Label("Add as filter", systemImage: "plus.circle")
+                            .font(.subheadline)
+                            .foregroundColor(.brandGold)
+                    }
+                    .accessibilityLabel("Add as filter. Create a custom filter from this message.")
                 }
 
                 // Two-engine breakdown moved out of the default view — opt-in for the curious
@@ -497,6 +525,11 @@ struct AuditLogView: View {
 
     private func verdictSubtitle(_ result: AuditResult) -> String {
         let filtered = activeDecision(result)
+        if let userDecision = result.userRuleDecision {
+            return userDecision == .block
+                ? "Matched one of your custom block rules."
+                : "Matched one of your custom always-allow rules."
+        }
         if activeMethodIsML {
             return filtered
                 ? "The on-device AI model classified this as a political message."
@@ -598,6 +631,9 @@ struct AuditLogView: View {
     }
 
     private func activeDecision(_ result: AuditResult) -> Bool {
+        if let userDecision = result.userRuleDecision {
+            return userDecision == .block
+        }
         if activeMethodIsML, let ml = result.mlLabel {
             return ml == "political"
         }

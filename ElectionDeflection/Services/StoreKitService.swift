@@ -53,24 +53,22 @@ struct StoreKitEntitlementChecker: EntitlementChecking {
     }
 
     func entitlementDetail(productIDs: Set<String>) async -> EntitlementDetail? {
-        var bestDetail: EntitlementDetail?
+        // currentEntitlements includes purchases shared via Family Sharing (same product ID),
+        // so a Family annual received from a family organizer unlocks Pro like a direct purchase.
+        // Winner selection (lifetime first, else latest-expiring active subscription) lives
+        // in the Foundation-only ProEntitlementPolicy so it is unit-tested on Linux too.
+        var candidates: [EntitlementCandidate] = []
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
-
-            if productIDs.contains(transaction.productID) {
-                if transaction.revocationDate == nil {
-                    if let expirationDate = transaction.expirationDate {
-                        if expirationDate > Date() {
-                            bestDetail = EntitlementDetail(productID: transaction.productID, expirationDate: expirationDate)
-                        }
-                    } else {
-                        // Lifetime purchase — no expiration; always takes priority
-                        return EntitlementDetail(productID: transaction.productID, expirationDate: nil)
-                    }
-                }
-            }
+            candidates.append(EntitlementCandidate(
+                productID: transaction.productID,
+                expirationDate: transaction.expirationDate,
+                isRevoked: transaction.revocationDate != nil
+            ))
         }
-        return bestDetail
+        return ProEntitlementPolicy.bestEntitlement(from: candidates, productIDs: productIDs).map {
+            EntitlementDetail(productID: $0.productID, expirationDate: $0.expirationDate)
+        }
     }
 }
 
@@ -133,12 +131,23 @@ final class StoreKitService: ObservableObject {
     /// Current subscription status for UI display.
     enum SubscriptionStatus: Equatable {
         case annual(renewalDate: Date)
+        case familyAnnual(renewalDate: Date)
         case lifetime
         case none
+
+        /// True for auto-renewing subscriptions (individual or Family), which have a
+        /// manageable App Store subscription; false for lifetime and none.
+        var isSubscription: Bool {
+            switch self {
+            case .annual, .familyAnnual: return true
+            case .lifetime, .none: return false
+            }
+        }
 
         var displayLabel: String {
             switch self {
             case .annual: return "Pro — Annual"
+            case .familyAnnual: return "Pro — Family Annual"
             case .lifetime: return "Pro — Lifetime"
             case .none: return "Pro"
             }
@@ -164,11 +173,30 @@ final class StoreKitService: ObservableObject {
     /// Current subscription status (annual with renewal date, lifetime, or none).
     @Published private(set) var subscriptionStatus: SubscriptionStatus = .none
 
+    /// The verified best entitlement from the last check, or nil when free.
+    @Published private(set) var currentEntitlement: EntitlementDetail?
+
+    /// Product ID of the plan the user currently holds, or nil when free.
+    var currentPlanProductID: String? { currentEntitlement?.productID }
+
+    /// Whether (and how) `productID` can be purchased given the current plan.
+    func eligibility(for productID: String) -> PurchaseEligibility {
+        let current = currentEntitlement.map {
+            EntitlementCandidate(productID: $0.productID, expirationDate: $0.expirationDate)
+        }
+        return ProEntitlementPolicy.purchaseEligibility(current: current, target: productID)
+    }
+
     // MARK: - Convenience Accessors
 
     /// The annual subscription product, if loaded.
     var annualProduct: Product? {
         products.first { $0.id == SharedConstants.proAnnualProductID }
+    }
+
+    /// The Family annual subscription product (shareable with up to 5 family members), if loaded.
+    var familyAnnualProduct: Product? {
+        products.first { $0.id == SharedConstants.proFamilyAnnualProductID }
     }
 
     /// The lifetime (non-consumable) product, if loaded.
@@ -183,10 +211,7 @@ final class StoreKitService: ObservableObject {
         category: "StoreKitService"
     )
 
-    let productIDs: Set<String> = [
-        SharedConstants.proAnnualProductID,
-        SharedConstants.proLifetimeProductID
-    ]
+    let productIDs: Set<String> = ProEntitlementPolicy.proProductIDs
 
     private let defaults: UserDefaults
     private let productFetcher: ProductFetching
@@ -282,11 +307,24 @@ final class StoreKitService: ObservableObject {
 
     // MARK: - Purchase
 
-    /// Initiates a purchase for the given product ID.
+    /// Initiates a purchase for the given product ID. An individual annual subscriber buying
+    /// Family goes through `product.purchase()`: StoreKit upgrades within the group immediately
+    /// (prorated by Apple), and the entitlement refresh afterwards reports `.familyAnnual`.
     /// Returns a `PurchaseOutcome` the UI can switch on.
     func purchase(productID: String) async -> PurchaseOutcome {
-        guard !isProTier else {
-            logger.info("Purchase skipped — user already has Pro access")
+        // Pro known only from the Keychain cache (no verified entitlement yet): verify first so
+        // eligibility is decided on the real plan.
+        if isProTier && currentEntitlement == nil {
+            await checkEntitlements()
+        }
+
+        let eligibility = eligibility(for: productID)
+        if case .blocked(.unknownProduct) = eligibility {
+            logger.error("Purchase attempted for unknown product: \(productID, privacy: .private)")
+            return .failed
+        }
+        guard eligibility.canPurchase else {
+            logger.info("Purchase skipped — not eligible (\(String(describing: eligibility), privacy: .public))")
             return .alreadyOwned
         }
 
@@ -335,6 +373,7 @@ final class StoreKitService: ObservableObject {
     func checkEntitlements() async {
         let detail = await entitlementChecker.entitlementDetail(productIDs: productIDs)
         let isEntitled = detail != nil
+        currentEntitlement = detail
         await updateProTierStatus(detail)
         subscriptionStatus = resolveSubscriptionStatus(from: detail)
         logger.info("Entitlement check complete: proTier=\(isEntitled)")
@@ -344,7 +383,9 @@ final class StoreKitService: ObservableObject {
     private func resolveSubscriptionStatus(from detail: EntitlementDetail?) -> SubscriptionStatus {
         guard let detail else { return .none }
         if let renewalDate = detail.expirationDate {
-            return .annual(renewalDate: renewalDate)
+            return ProEntitlementPolicy.isFamilyProduct(detail.productID)
+                ? .familyAnnual(renewalDate: renewalDate)
+                : .annual(renewalDate: renewalDate)
         }
         return .lifetime
     }
