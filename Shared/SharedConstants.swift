@@ -13,6 +13,10 @@ enum SharedConstants {
     static let keywordListKey = "keywordList"
     static let filterEnabledKey = "filterEnabled"
     static let proTierStatusKey = "proTierStatus"
+    /// Pro entitlement snapshot (see ProEntitlementSnapshot): product ID + expiration written by the
+    /// main app so the extension can detect a lapse without opening the app.
+    static let proProductIDKey = "proEntitlementProductID"
+    static let proExpirationDateKey = "proEntitlementExpiration"
     static let mlModelEnabledKey = "mlModelEnabled"
     static let textsBlockedCountKey = "textsBlockedCount"
     static let filterMethodKey = "filterMethod"

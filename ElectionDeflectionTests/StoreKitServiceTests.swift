@@ -79,6 +79,7 @@ final class StoreKitServiceTests: XCTestCase {
         // than an injected instance, so these have to be reset directly rather than
         // through testDefaults.
         SharedDataManager.shared.isProTier = false
+        SharedDataManager.shared.clearProEntitlementSnapshot()
         SharedDataManager.shared.preferKeywordFiltering = SharedConstants.defaultPreferKeywordFiltering
     }
 
@@ -90,6 +91,7 @@ final class StoreKitServiceTests: XCTestCase {
         mockChecker = nil
         mockPurchaser = nil
         SharedDataManager.shared.isProTier = false
+        SharedDataManager.shared.clearProEntitlementSnapshot()
         SharedDataManager.shared.preferKeywordFiltering = SharedConstants.defaultPreferKeywordFiltering
         super.tearDown()
     }
@@ -312,6 +314,67 @@ final class StoreKitServiceTests: XCTestCase {
         await service.checkEntitlements()
         XCTAssertEqual(service.subscriptionStatus, .none)
         XCTAssertFalse(service.isProTier)
+    }
+
+    // MARK: - Lapsed subscriber (snapshot)
+
+    func testCheckEntitlementsPersistsSnapshot() async {
+        let service = makeService()
+        let expiry = Date().addingTimeInterval(86_400)
+        mockChecker.detailToReturn = EntitlementDetail(productID: SharedConstants.proAnnualProductID,
+                                                       expirationDate: expiry)
+        await service.checkEntitlements()
+        let snap = SharedDataManager.shared.proEntitlementSnapshot
+        XCTAssertEqual(snap.productID, SharedConstants.proAnnualProductID)
+        XCTAssertEqual(snap.expirationDate, expiry)
+        XCTAssertTrue(snap.cachedFlag)
+        XCTAssertFalse(service.isLapsedSubscriber)
+    }
+
+    func testLapseKeepsSnapshotAndSetsLapsedUntilRenewed() async {
+        let service = makeService()
+        mockChecker.detailToReturn = EntitlementDetail(productID: SharedConstants.proAnnualProductID,
+                                                       expirationDate: Date().addingTimeInterval(86_400))
+        await service.checkEntitlements()
+
+        mockChecker.detailToReturn = nil
+        await service.checkEntitlements()
+        XCTAssertFalse(service.isProTier)
+        XCTAssertTrue(service.isLapsedSubscriber)
+        XCTAssertFalse(SharedDataManager.shared.isProTier)
+        XCTAssertEqual(SharedDataManager.shared.proEntitlementSnapshot.productID, SharedConstants.proAnnualProductID)
+
+        mockChecker.detailToReturn = EntitlementDetail(productID: SharedConstants.proAnnualProductID,
+                                                       expirationDate: Date().addingTimeInterval(86_400))
+        await service.checkEntitlements()
+        XCTAssertTrue(service.isProTier)
+        XCTAssertFalse(service.isLapsedSubscriber)
+    }
+
+    func testLifetimeAndNeverSubscribedAreNotLapsed() async {
+        let service = makeService()
+        mockChecker.detailToReturn = nil
+        await service.checkEntitlements()
+        XCTAssertFalse(service.isLapsedSubscriber)
+
+        mockChecker.detailToReturn = EntitlementDetail(productID: SharedConstants.proLifetimeProductID,
+                                                       expirationDate: nil)
+        await service.checkEntitlements()
+        XCTAssertTrue(service.isProTier)
+        XCTAssertFalse(service.isLapsedSubscriber)
+    }
+
+    func testSyncFromKeychainCannotResurrectExpiredSnapshot() {
+        SharedDataManager.shared.recordProEntitlement(ProEntitlementSnapshot(
+            productID: SharedConstants.proAnnualProductID,
+            expirationDate: Date().addingTimeInterval(-60), cachedFlag: true))
+        KeychainService.saveProTierStatus(true) // stale Keychain true
+        let service = makeService()
+        service.syncProTierFromKeychain()
+        XCTAssertFalse(service.isProTier)
+        XCTAssertFalse(SharedDataManager.shared.isProTier)
+        XCTAssertTrue(service.isLapsedSubscriber)
+        KeychainService.saveProTierStatus(false)
     }
 
     // MARK: - Error Handling (Story 2.8)

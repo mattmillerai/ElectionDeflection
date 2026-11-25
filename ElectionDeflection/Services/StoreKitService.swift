@@ -157,6 +157,10 @@ final class StoreKitService: ObservableObject {
     /// Whether the user has an active pro tier entitlement. Observed by views for reactive updates.
     @Published private(set) var isProTier: Bool = SharedDataManager.shared.isProTier
 
+    /// True when the user's annual subscription has ended (not lifetime, not never-subscribed).
+    /// Drives the "Renew" card.
+    @Published private(set) var isLapsedSubscriber: Bool = SharedDataManager.shared.isLapsedSubscriber
+
     /// Current subscription status (annual with renewal date, lifetime, or none).
     @Published private(set) var subscriptionStatus: SubscriptionStatus = .none
 
@@ -331,7 +335,7 @@ final class StoreKitService: ObservableObject {
     func checkEntitlements() async {
         let detail = await entitlementChecker.entitlementDetail(productIDs: productIDs)
         let isEntitled = detail != nil
-        await updateProTierStatus(isEntitled)
+        await updateProTierStatus(detail)
         subscriptionStatus = resolveSubscriptionStatus(from: detail)
         logger.info("Entitlement check complete: proTier=\(isEntitled)")
     }
@@ -383,11 +387,20 @@ final class StoreKitService: ObservableObject {
 
     // MARK: - Pro Tier Status
 
-    /// Updates Keychain (authoritative), UserDefaults (extension cache), and published state.
-    private func updateProTierStatus(_ value: Bool) async {
+    /// Persists the full entitlement snapshot (App Group, read by the extension), mirrors the boolean
+    /// to the Keychain, and updates published state. After a subscription lapses the snapshot keeps
+    /// the product ID with a past expiration so the UI can offer renewal.
+    private func updateProTierStatus(_ detail: EntitlementDetail?) async {
+        let manager = SharedDataManager.shared
+        let snapshot = ProEntitlementPolicy.snapshotAfterCheck(
+            entitlement: detail.map { EntitlementCandidate(productID: $0.productID, expirationDate: $0.expirationDate) },
+            previous: manager.proEntitlementSnapshot
+        )
+        let value = snapshot.cachedFlag
         KeychainService.saveProTierStatus(value)
-        SharedDataManager.shared.isProTier = value
+        manager.recordProEntitlement(snapshot)
         isProTier = value
+        isLapsedSubscriber = manager.isLapsedSubscriber
         // Entitlement just changed — recompute ML availability now so isMLModelEnabled
         // and filterMethod reflect the new tier immediately. Without this, a fresh Pro
         // purchase leaves the flag at its pre-purchase (false) value until the next
@@ -399,15 +412,23 @@ final class StoreKitService: ObservableObject {
         }
     }
 
-    /// Syncs Pro tier from Keychain on launch. Keychain is authoritative; UserDefaults is updated to match.
+    /// Adopts the stored Pro state on launch, before StoreKit has been queried. The App Group
+    /// snapshot (product + expiration) wins over the Keychain boolean, so a stale Keychain `true`
+    /// cannot resurrect an expired entitlement, e.g. when StoreKit is unreachable. The Keychain
+    /// value only matters for legacy installs that have no snapshot yet.
     func syncProTierFromKeychain() {
-        if let keychainValue = KeychainService.loadProTierStatus() {
-            if keychainValue != SharedDataManager.shared.isProTier {
-                SharedDataManager.shared.isProTier = keychainValue
-            }
-            isProTier = keychainValue
+        let manager = SharedDataManager.shared
+        let snapshot = manager.proEntitlementSnapshot
+        let keychainValue = KeychainService.loadProTierStatus()
+        let value = ProEntitlementPolicy.launchEntitlement(keychainValue: keychainValue, snapshot: snapshot)
+        if snapshot.productID != nil, keychainValue != value {
+            KeychainService.saveProTierStatus(value)
         }
-        // If Keychain has no value yet, preserve existing UserDefaults value (first launch / migration)
+        if value != snapshot.cachedFlag {
+            manager.isProTier = value
+        }
+        isProTier = value
+        isLapsedSubscriber = manager.isLapsedSubscriber
     }
 
     // MARK: - Caching

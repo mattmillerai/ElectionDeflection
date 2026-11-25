@@ -50,11 +50,15 @@
 		B2A0008200000001000B0022 /* OCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A0008200000001000B0004 /* OCRService.swift */; };
 		B2A0008200000001000B0023 /* SharedConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A0000100000001000B0001 /* SharedConstants.swift */; };
 		B2A0008200000001000B0024 /* SharedDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A0000100000001000B0002 /* SharedDataManager.swift */; };
+		B2A0001C00000001000B0020 /* ProEntitlementPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A0001C00000001000B0001 /* ProEntitlementPolicy.swift */; };
+		B2A0001C00000001000B0021 /* ProEntitlementPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A0001C00000001000B0001 /* ProEntitlementPolicy.swift */; };
+		B2A0001C00000001000B0022 /* ProEntitlementPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A0001C00000001000B0001 /* ProEntitlementPolicy.swift */; };
 		B2A0008200000001000B0025 /* TextSubmissionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A0001200000001000B0001 /* TextSubmissionService.swift */; };
 		B2A0008200000001000B0026 /* Color+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A0000600000001000B0001 /* Color+Hex.swift */; };
 		B2A0008200000001000B0027 /* DefaultFilterData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A0000300000001000B0001 /* DefaultFilterData.swift */; };
 		B2A0008200000001000B0028 /* OCRServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A0008200000001000B0007 /* OCRServiceTests.swift */; };
 		B2A0008200000001000B0029 /* OCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A0008200000001000B0004 /* OCRService.swift */; };
+		B2A0008200000001000B0031 /* AdaptiveLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A000B000000001000B0001 /* AdaptiveLayout.swift */; };
 		B2A0008200000001000B0030 /* ElectionDeflectionShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B2A0008200000001000B0001 /* ElectionDeflectionShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -112,6 +116,7 @@
 		A51F8DF22C853DC600E93584 /* ElectionDeflectionFilter.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ElectionDeflectionFilter.entitlements; sourceTree = "<group>"; };
 		B2A0000100000001000B0001 /* SharedConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedConstants.swift; sourceTree = "<group>"; };
 		B2A0000100000001000B0002 /* SharedDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedDataManager.swift; sourceTree = "<group>"; };
+		B2A0001C00000001000B0001 /* ProEntitlementPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProEntitlementPolicy.swift; sourceTree = "<group>"; };
 		B2A0000100000001000B0040 /* ElectionDeflectionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ElectionDeflectionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2A0000100000001000B0046 /* SharedDataManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedDataManagerTests.swift; sourceTree = "<group>"; };
 		B2A0000100000001000B0060 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
@@ -283,6 +288,7 @@
 			isa = PBXGroup;
 			children = (
 				B2A0000300000001000B0001 /* DefaultFilterData.swift */,
+				B2A0001C00000001000B0001 /* ProEntitlementPolicy.swift */,
 				B2A0000100000001000B0001 /* SharedConstants.swift */,
 				B2A0000100000001000B0002 /* SharedDataManager.swift */,
 			);
@@ -503,6 +509,7 @@
 				A51F8DAB2C8513A500E93584 /* ElectionDeflectionApp.swift in Sources */,
 				B2A0000100000001000B0020 /* SharedConstants.swift in Sources */,
 				B2A0000100000001000B0022 /* SharedDataManager.swift in Sources */,
+				B2A0001C00000001000B0020 /* ProEntitlementPolicy.swift in Sources */,
 				B2A0000300000001000B0020 /* DefaultFilterData.swift in Sources */,
 				B2A0000400000001000B0020 /* MainAppView.swift in Sources */,
 				B2A000B000000001000B0020 /* AdaptiveLayout.swift in Sources */,
@@ -529,6 +536,7 @@
 				A51F8DC02C85142500E93584 /* MessageFilterExtension.swift in Sources */,
 				B2A0000100000001000B0021 /* SharedConstants.swift in Sources */,
 				B2A0000100000001000B0023 /* SharedDataManager.swift in Sources */,
+				B2A0001C00000001000B0021 /* ProEntitlementPolicy.swift in Sources */,
 				B2A0000300000001000B0021 /* DefaultFilterData.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -557,9 +565,11 @@
 				B2A0008200000001000B0022 /* OCRService.swift in Sources */,
 				B2A0008200000001000B0023 /* SharedConstants.swift in Sources */,
 				B2A0008200000001000B0024 /* SharedDataManager.swift in Sources */,
+				B2A0001C00000001000B0022 /* ProEntitlementPolicy.swift in Sources */,
 				B2A0008200000001000B0025 /* TextSubmissionService.swift in Sources */,
 				B2A0008200000001000B0026 /* Color+Hex.swift in Sources */,
 				B2A0008200000001000B0027 /* DefaultFilterData.swift in Sources */,
+				B2A0008200000001000B0031 /* AdaptiveLayout.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -738,7 +748,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.5;
-				MARKETING_VERSION = 2.1.6;
+				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.millermedia.ElectionDeflection;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -782,7 +792,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.5;
-				MARKETING_VERSION = 2.1.6;
+				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.millermedia.ElectionDeflection;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -810,7 +820,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.1.6;
+				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.millermedia.ElectionDeflection.ElectionDeflectionFilter;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -839,7 +849,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.1.6;
+				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.millermedia.ElectionDeflection.ElectionDeflectionFilter;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -911,7 +921,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.1.6;
+				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.millermedia.ElectionDeflection.ElectionDeflectionShare;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -940,7 +950,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.1.6;
+				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.millermedia.ElectionDeflection.ElectionDeflectionShare;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;

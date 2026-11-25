@@ -177,10 +177,14 @@ final class OCRService {
 
     /// Creates a downsampled thumbnail from an image URL for preview display.
     /// Returns nil if the image cannot be loaded.
-    static func createThumbnail(from url: URL, maxHeight: CGFloat = 150) -> UIImage? {
+    /// Callers pass the real display scale (SwiftUI `displayScale`); the default
+    /// is only a safety value for tests and callers without an environment.
+    /// A non-positive `scale` is treated as 1.
+    static func createThumbnail(from url: URL, maxHeight: CGFloat = 150, scale: CGFloat = 2) -> UIImage? {
+        let pixelSize = maxHeight * max(scale, 1)
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxHeight * UIScreen.main.scale,
+            kCGImageSourceThumbnailMaxPixelSize: pixelSize,
             kCGImageSourceCreateThumbnailWithTransform: true,
         ]
 
