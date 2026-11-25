@@ -61,6 +61,9 @@ struct MainAppView: View {
         }
         .onChange(of: scenePhase) { newPhase in
             if newPhase == .active {
+                // Re-verify entitlement on foreground so an expired/renewed subscription is
+                // reflected without a relaunch (the extension reads the stored expiration).
+                Task { await storeService.checkEntitlements() }
                 refreshData()
                 validateMLModel()
                 ReviewRequestManager.shared.recordLaunch()
@@ -202,6 +205,43 @@ private extension MainAppView {
                 .padding(.horizontal, 20)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("Pro tier active. \(storeService.subscriptionStatus.displayLabel)")
+            } else if storeService.isLapsedSubscriber {
+                Button {
+                    showingProUpgrade = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "arrow.clockwise.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Your subscription ended")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                            Text("Renew to keep advanced filtering.")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                        Spacer()
+                        Text("Renew")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.white)
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    .padding(20)
+                    .background(
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color.orange, Color.red]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(16)
+                    .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 5)
+                }
+                .padding(.horizontal, 20)
+                .accessibilityLabel("Your subscription ended. Renew to keep advanced filtering.")
+                .accessibilityHint("Opens the Pro upgrade screen")
             } else {
                 Button {
                     showingProUpgrade = true

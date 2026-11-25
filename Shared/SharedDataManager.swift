@@ -66,9 +66,52 @@ final class SharedDataManager {
 
     // MARK: - Pro Tier Status
 
+    /// Whether Pro is active right now. Reads evaluate the stored entitlement snapshot against the
+    /// current date, so a lapsed subscription turns off paid filters in the extension even if the
+    /// main app has not run since it expired. Evaluation is read-only (the extension cannot write).
+    /// The setter only writes the cached boolean; the app records the full snapshot with
+    /// `recordProEntitlement(_:)`.
     var isProTier: Bool {
-        get { defaults?.bool(forKey: SharedConstants.proTierStatusKey) ?? SharedConstants.defaultProTierStatus }
+        get {
+            guard defaults != nil else { return SharedConstants.defaultProTierStatus }
+            return ProEntitlementPolicy.isEntitled(proEntitlementSnapshot)
+        }
         set { defaults?.set(newValue, forKey: SharedConstants.proTierStatusKey) }
+    }
+
+    /// The persisted entitlement snapshot (product ID, expiration, cached boolean).
+    var proEntitlementSnapshot: ProEntitlementSnapshot {
+        ProEntitlementSnapshot(
+            productID: defaults?.string(forKey: SharedConstants.proProductIDKey),
+            expirationDate: defaults?.object(forKey: SharedConstants.proExpirationDateKey) as? Date,
+            cachedFlag: defaults?.bool(forKey: SharedConstants.proTierStatusKey) ?? SharedConstants.defaultProTierStatus
+        )
+    }
+
+    /// True when the user held an annual subscription that has ended.
+    var isLapsedSubscriber: Bool {
+        ProEntitlementPolicy.isLapsedSubscription(proEntitlementSnapshot)
+    }
+
+    /// Main app only. Persists the full snapshot (nil values remove the key).
+    func recordProEntitlement(_ snapshot: ProEntitlementSnapshot) {
+        defaults?.set(snapshot.cachedFlag, forKey: SharedConstants.proTierStatusKey)
+        if let productID = snapshot.productID {
+            defaults?.set(productID, forKey: SharedConstants.proProductIDKey)
+        } else {
+            defaults?.removeObject(forKey: SharedConstants.proProductIDKey)
+        }
+        if let expiration = snapshot.expirationDate {
+            defaults?.set(expiration, forKey: SharedConstants.proExpirationDateKey)
+        } else {
+            defaults?.removeObject(forKey: SharedConstants.proExpirationDateKey)
+        }
+    }
+
+    /// Removes the snapshot keys (leaves the legacy boolean alone). Mainly for tests.
+    func clearProEntitlementSnapshot() {
+        defaults?.removeObject(forKey: SharedConstants.proProductIDKey)
+        defaults?.removeObject(forKey: SharedConstants.proExpirationDateKey)
     }
 
     // MARK: - ML Model Enabled

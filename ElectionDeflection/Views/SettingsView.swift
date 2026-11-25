@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @ObservedObject private var storeService = StoreKitService.shared
 
     @State private var isFilterEnabled: Bool
@@ -311,6 +312,9 @@ struct SettingsView: View {
                     }
                     .padding(.top, 16)
                     .padding(.bottom, 40)
+                    // Capped and centered on wide regular-width displays; unchanged at
+                    // compact width (including compact form sheets on the Duo inner display).
+                    .readableWidth(horizontalSizeClass == .regular ? AdaptiveLayout.readableMaxWidth : .infinity)
                 }
             }
         }

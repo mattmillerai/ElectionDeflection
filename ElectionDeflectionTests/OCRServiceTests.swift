@@ -117,6 +117,38 @@ final class OCRServiceTests: XCTestCase {
         XCTAssertNil(thumbnail, "Should return nil for invalid image URL")
     }
 
+    func testCreateThumbnailHonorsInjectedScale() throws {
+        let imageURL = try createTestImage(withText: "Test")
+        defer { try? FileManager.default.removeItem(at: imageURL) }
+
+        let maxHeight: CGFloat = 50
+        let small = OCRService.createThumbnail(from: imageURL, maxHeight: maxHeight, scale: 1)
+        let large = OCRService.createThumbnail(from: imageURL, maxHeight: maxHeight, scale: 2)
+        XCTAssertNotNil(small)
+        XCTAssertNotNil(large)
+
+        // UIImage(cgImage:) has scale 1, so size equals pixels.
+        if let small = small, let large = large {
+            XCTAssertLessThanOrEqual(max(small.size.width, small.size.height), maxHeight * 1)
+            XCTAssertLessThanOrEqual(max(large.size.width, large.size.height), maxHeight * 2)
+            XCTAssertGreaterThan(large.size.width, small.size.width, "Scale 2 should yield a larger thumbnail than scale 1")
+        }
+    }
+
+    func testCreateThumbnailTreatsNonPositiveScaleAsOne() throws {
+        let imageURL = try createTestImage(withText: "Test")
+        defer { try? FileManager.default.removeItem(at: imageURL) }
+
+        let maxHeight: CGFloat = 50
+        for scale: CGFloat in [0, -1] {
+            let thumbnail = OCRService.createThumbnail(from: imageURL, maxHeight: maxHeight, scale: scale)
+            XCTAssertNotNil(thumbnail, "Scale \(scale) should still produce a thumbnail")
+            if let thumb = thumbnail {
+                XCTAssertLessThanOrEqual(max(thumb.size.width, thumb.size.height), maxHeight)
+            }
+        }
+    }
+
     // MARK: - Sanitization Pipeline Integration Tests
 
     func testOCROutputPassesThroughSanitization() {

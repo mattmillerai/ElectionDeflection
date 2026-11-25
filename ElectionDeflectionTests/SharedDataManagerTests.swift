@@ -59,6 +59,48 @@ final class SharedDataManagerTests: XCTestCase {
         XCTAssertFalse(sut.isProTier)
     }
 
+    func testExpiredSnapshotOverridesCachedTrueBoolean() {
+        sut.recordProEntitlement(ProEntitlementSnapshot(
+            productID: SharedConstants.proAnnualProductID,
+            expirationDate: Date().addingTimeInterval(-1), cachedFlag: true))
+        XCTAssertFalse(sut.isProTier)
+        XCTAssertTrue(sut.isLapsedSubscriber)
+    }
+
+    func testActiveAnnualSnapshotRoundTripsAcrossInstances() {
+        let expiry = Date().addingTimeInterval(3600)
+        sut.recordProEntitlement(ProEntitlementSnapshot(
+            productID: SharedConstants.proAnnualProductID, expirationDate: expiry, cachedFlag: false))
+        let other = SharedDataManager(defaults: testDefaults)
+        XCTAssertTrue(other.isProTier)
+        XCTAssertEqual(other.proEntitlementSnapshot.productID, SharedConstants.proAnnualProductID)
+        XCTAssertEqual(other.proEntitlementSnapshot.expirationDate, expiry)
+        XCTAssertFalse(other.isLapsedSubscriber)
+    }
+
+    func testLifetimeSnapshotIgnoresSpuriousExpiration() {
+        sut.recordProEntitlement(ProEntitlementSnapshot(
+            productID: SharedConstants.proLifetimeProductID,
+            expirationDate: Date().addingTimeInterval(-1000), cachedFlag: true))
+        XCTAssertTrue(sut.isProTier)
+        XCTAssertFalse(sut.isLapsedSubscriber)
+    }
+
+    func testLegacyBooleanOnlyFallsBackToCachedFlag() {
+        sut.isProTier = true
+        XCTAssertTrue(sut.isProTier)
+        XCTAssertFalse(sut.isLapsedSubscriber)
+    }
+
+    func testClearProEntitlementSnapshotRemovesKeys() {
+        sut.recordProEntitlement(ProEntitlementSnapshot(
+            productID: SharedConstants.proAnnualProductID,
+            expirationDate: Date().addingTimeInterval(3600), cachedFlag: true))
+        sut.clearProEntitlementSnapshot()
+        XCTAssertNil(testDefaults.object(forKey: SharedConstants.proProductIDKey))
+        XCTAssertNil(testDefaults.object(forKey: SharedConstants.proExpirationDateKey))
+    }
+
     func testSetProTier() {
         sut.isProTier = true
         XCTAssertTrue(sut.isProTier)

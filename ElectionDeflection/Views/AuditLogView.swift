@@ -162,6 +162,7 @@ final class FilterAuditClassifier {
 
 struct AuditLogView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @ObservedObject private var storeService = StoreKitService.shared
     @StateObject private var store = AuditLogStore()
 
@@ -170,6 +171,7 @@ struct AuditLogView: View {
     @State private var showDetails = false
     @State private var showTester = true
     @State private var resultToken = 0
+    @State private var contentWidth: CGFloat = 0
     @FocusState private var inputFocused: Bool
 
     private let samples: [String] = [
@@ -185,21 +187,78 @@ struct AuditLogView: View {
 
             VStack(spacing: 0) {
                 header
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(spacing: 24) {
-                            statusSection
-                            testSection
-                            logSection
-                        }
-                        .padding(.top, 16)
-                        .padding(.bottom, 40)
-                    }
-                    .onChange(of: resultToken) { _ in
-                        withAnimation { proxy.scrollTo("auditResult", anchor: .center) }
+                // Identity-preserving: two independent scroll columns can't be
+                // expressed with AnyLayout, so this branches on structure only.
+                // All state (input, lastResult, showDetails, showTester,
+                // resultToken, inputFocused, store) lives on AuditLogView, so a
+                // fold/unfold/rotation keeps typed text and the result. Do not
+                // move state into a branch-local view.
+                Group {
+                    if AdaptiveLayout.mode(horizontalSizeClass: horizontalSizeClass,
+                                           availableWidth: contentWidth) == .twoColumn {
+                        twoColumnBody
+                    } else {
+                        singleColumnBody
                     }
                 }
+                // Measured in the background so the single column gets exactly the
+                // same width proposal as before (an in-flow GeometryReader rounds it).
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear { contentWidth = proxy.size.width }
+                            .onChange(of: proxy.size.width) { contentWidth = $0 }
+                    }
+                )
             }
+        }
+    }
+
+    // MARK: Layouts
+
+    private var singleColumnBody: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 24) {
+                    statusSection
+                    testSection
+                    logSection
+                }
+                .padding(.top, 16)
+                .padding(.bottom, 40)
+            }
+            .onChange(of: resultToken) { _ in
+                withAnimation { proxy.scrollTo("auditResult", anchor: .center) }
+            }
+        }
+    }
+
+    /// Tester on the left (primary action, read first by VoiceOver); status
+    /// and history on the right. Each column scrolls on its own.
+    private var twoColumnBody: some View {
+        HStack(alignment: .top, spacing: 0) {
+            // The tester column owns "auditResult", so it owns the scroll-to-result.
+            ScrollViewReader { proxy in
+                ScrollView {
+                    testSection
+                        .padding(.top, 16)
+                        .padding(.bottom, 40)
+                }
+                .onChange(of: resultToken) { _ in
+                    withAnimation { proxy.scrollTo("auditResult", anchor: .center) }
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            ScrollView {
+                VStack(spacing: 24) {
+                    statusSection
+                    logSection
+                }
+                .padding(.top, 16)
+                .padding(.bottom, 40)
+            }
+            .frame(maxWidth: .infinity)
         }
     }
 
