@@ -197,6 +197,15 @@ final class SharedDataManager {
         set { defaults?.set(newValue, forKey: SharedConstants.combinedTermsKey) }
     }
 
+    // MARK: - User Filter Rules (Pro custom filters, issue #5)
+    // Written only from the main app; the extension and FilterAuditClassifier only read.
+    // Missing or undecodable data reads as [] rather than throwing.
+
+    var userFilterRules: [UserFilterRule] {
+        get { UserFilterRuleCodec.decode(defaults?.data(forKey: SharedConstants.userFilterRulesKey)) }
+        set { defaults?.set(UserFilterRuleCodec.encode(newValue), forKey: SharedConstants.userFilterRulesKey) }
+    }
+
     // MARK: - Prefer Keyword Filtering (Pro users may opt out of AI)
 
     var preferKeywordFiltering: Bool {

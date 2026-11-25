@@ -17,6 +17,10 @@ final class MessageFilterExtension: ILMessageFilterExtension {
     var whitelistContexts: [String: [String]] = [:]
     var combinedTerms: [[String]] = []
     private var keywordEngine = KeywordFilterEngine(keywords: [], whitelistContexts: [:], combinedTerms: [])
+    // Pro custom filter rules (issue #5). Read once and regexes compiled once here — never
+    // per message. Evaluation is gated on isProTier in determineAction, so rules are kept
+    // but inactive after a Pro lapse.
+    private var userRuleEngine = UserRuleEngine(rules: [])
 
     // MARK: - Core ML Text Classifier
     private var mlModel: MLModel?
@@ -40,10 +44,12 @@ final class MessageFilterExtension: ILMessageFilterExtension {
             whitelistContexts: effective.whitelistContexts,
             combinedTerms: effective.combinedTerms
         )
+        self.userRuleEngine = UserRuleEngine(rules: SharedDataManager.shared.userFilterRules)
         filterLog("MessageFilterExtension initialized")
         filterLog("Loaded keywords: \(self.keywords.count) keywords")
         filterLog("Loaded whitelist contexts: \(self.whitelistContexts.count) contexts")
         filterLog("Loaded combined terms: \(self.combinedTerms.count) combinations")
+        filterLog("Compiled \(self.userRuleEngine.compiledRegexCount) custom regex rules")
 
         // Load ML model
         loadMLModel()
@@ -98,6 +104,13 @@ final class MessageFilterExtension: ILMessageFilterExtension {
 
     private func determineAction(for messageBody: String) -> ILMessageFilterAction {
         filterLog("Evaluating message (\(messageBody.count) chars)")
+
+        // Pro custom rules run first: "always allow" beats "block", and either beats all
+        // built-in keyword/ML logic. No match (or not Pro) falls through unchanged.
+        if let userDecision = userRuleEngine.evaluate(messageBody, isProTier: SharedDataManager.shared.isProTier) {
+            filterLog("Custom rule decision: \(userDecision == .allow ? "allow" : "block")")
+            return userDecision == .allow ? .allow : .junk
+        }
 
         // Run ML inference (log result for comparison, used as primary if available)
         let mlResult = classifyWithML(messageBody)
